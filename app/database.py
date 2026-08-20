@@ -343,5 +343,24 @@ class Database:
         ).fetchall()
         return rows
 
+    # ---------------- Reset geral ----------------
+    def resetar_tudo(self):
+        """Apaga todos os dados cadastrados (contas, receitas, despesas,
+        investimentos e categorias) e recria as categorias padrão."""
+        self.conn.execute("DELETE FROM despesas")
+        self.conn.execute("DELETE FROM receitas")
+        self.conn.execute("DELETE FROM investimentos")
+        self.conn.execute("DELETE FROM contas")
+        self.conn.execute("DELETE FROM categorias")
+        self.conn.execute(
+            "DELETE FROM sqlite_sequence WHERE name IN "
+            "('despesas', 'receitas', 'investimentos', 'contas', 'categorias')"
+        )
+        self.conn.executemany(
+            "INSERT INTO categorias (nome, grupo_orcamento) VALUES (?, ?)",
+            DEFAULT_CATEGORIAS,
+        )
+        self.conn.commit()
+
     def close(self):
         self.conn.close()

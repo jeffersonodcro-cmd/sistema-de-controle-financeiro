@@ -1,6 +1,7 @@
 """Janela principal do sistema de controle financeiro."""
 
 import customtkinter as ctk
+from tkinter import messagebox, simpledialog
 
 from app.database import Database
 from app.ui.dashboard_tab import DashboardTab
@@ -22,6 +23,14 @@ class MainWindow(ctk.CTk):
         self.minsize(1000, 650)
 
         self.db = Database()
+
+        top_bar = ctk.CTkFrame(self, fg_color="transparent")
+        top_bar.pack(fill="x", padx=10, pady=(10, 0))
+        ctk.CTkButton(
+            top_bar, text="Resetar todos os dados", width=180,
+            fg_color="#d9534f", hover_color="#b52b2b",
+            command=self._resetar_tudo,
+        ).pack(side="right")
 
         self.tabview = ctk.CTkTabview(self)
         self.tabview.pack(fill="both", expand=True, padx=10, pady=10)
@@ -87,6 +96,31 @@ class MainWindow(ctk.CTk):
         self.despesas_tab.refresh()
         self.investimentos_tab.refresh()
         self.metas_tab.refresh()
+
+    def _resetar_tudo(self):
+        confirmado = messagebox.askyesno(
+            "Resetar todos os dados",
+            "Isso vai APAGAR PERMANENTEMENTE todas as contas, receitas, "
+            "despesas, investimentos e categorias cadastradas, voltando o "
+            "app ao estado inicial (apenas categorias padrão).\n\n"
+            "Essa ação não pode ser desfeita. Deseja continuar?",
+            icon="warning",
+        )
+        if not confirmado:
+            return
+
+        digitado = simpledialog.askstring(
+            "Confirmação final",
+            "Para confirmar, digite RESETAR (em maiúsculas):",
+            parent=self,
+        )
+        if digitado != "RESETAR":
+            messagebox.showinfo("Cancelado", "Reset cancelado. Nenhum dado foi apagado.")
+            return
+
+        self.db.resetar_tudo()
+        self._refresh_all()
+        messagebox.showinfo("Concluído", "Todos os dados foram apagados. O app voltou ao estado inicial.")
 
     def _on_close(self):
         self.db.close()
