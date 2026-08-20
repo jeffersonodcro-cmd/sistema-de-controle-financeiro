@@ -120,7 +120,7 @@ class MetasTab(ctk.CTkFrame):
 
         header = ctk.CTkFrame(self.lista_frame, fg_color="transparent")
         header.pack(fill="x", pady=(0, 5))
-        for text, w in [("Categoria", 140), ("Grupo", 140), ("Orçamento", 100), ("Gasto no mês", 100), ("", 220)]:
+        for text, w in [("Categoria", 140), ("Grupo", 140), ("Orçamento", 100), ("Gasto no mês", 100), ("", 220), ("", 70)]:
             ctk.CTkLabel(header, text=text, width=w, font=("", 12, "bold")).pack(side="left", padx=4)
 
         for linha in linhas:
@@ -145,3 +145,26 @@ class MetasTab(ctk.CTkFrame):
                     barra.configure(progress_color="#d9534f")
                 barra.pack(side="left", padx=4)
                 ctk.CTkLabel(row, text=f"{pct:.0f}%", width=40).pack(side="left", padx=4)
+            else:
+                ctk.CTkLabel(row, text="", width=224).pack(side="left", padx=4)
+
+            ctk.CTkButton(
+                row, text="Excluir", width=70, fg_color="#d9534f", hover_color="#b52b2b",
+                command=lambda cid=linha["id"], nome=linha["nome"]: self._excluir(cid, nome),
+            ).pack(side="left", padx=4)
+
+    def _excluir(self, categoria_id, nome):
+        if not messagebox.askyesno("Confirmar", f"Excluir a categoria '{nome}'?"):
+            return
+        try:
+            self.db.excluir_categoria(categoria_id)
+        except Exception:
+            messagebox.showerror(
+                "Não é possível excluir",
+                f"A categoria '{nome}' tem despesas lançadas vinculadas a ela.\n"
+                "Exclua ou mova essas despesas para outra categoria antes de excluí-la.",
+            )
+            return
+        self.refresh()
+        if self.on_change:
+            self.on_change()

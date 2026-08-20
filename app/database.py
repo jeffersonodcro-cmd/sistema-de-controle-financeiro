@@ -288,7 +288,7 @@ class Database:
 
     def gasto_por_categoria_mes(self, ano, mes):
         return self.conn.execute(
-            "SELECT c.nome, c.grupo_orcamento, c.orcamento_mensal, "
+            "SELECT c.id, c.nome, c.grupo_orcamento, c.orcamento_mensal, "
             "COALESCE(SUM(d.valor), 0) AS gasto "
             "FROM categorias c "
             "LEFT JOIN despesas d ON d.categoria_id = c.id "
