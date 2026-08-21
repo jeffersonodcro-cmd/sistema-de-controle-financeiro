@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block titulo %}Investimentos — Controle Financeiro{% endblock %}
+{% block conteudo %}
+<div class="page-header">
+  <div>
+    <h1>Investimentos</h1>
+    <p>Registre aportes e resgates e acompanhe a evolução do seu patrimônio.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Novo aporte / resgate</h2>
+  <form method="post" class="form-grid">
+    <div class="field">
+      <label for="descricao">Descrição</label>
+      <input type="text" id="descricao" name="descricao" placeholder="Ex: Aporte Tesouro Direto" required>
+    </div>
+    <div class="field">
+      <label for="valor">Valor (R$, negativo p/ resgate)</label>
+      <input type="number" step="0.01" id="valor" name="valor" placeholder="0.00" required>
+    </div>
+    <div class="field">
+      <label for="tipo">Tipo</label>
+      <select id="tipo" name="tipo">
+        <option value="renda_fixa">Renda fixa</option>
+        <option value="renda_variavel">Renda variável</option>
+        <option value="fundos">Fundos</option>
+        <option value="previdencia">Previdência</option>
+        <option value="outro">Outro</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="data">Data</label>
+      <input type="date" id="data" name="data" value="{{ hoje }}" required>
+    </div>
+    <div class="field">
+      <label for="conta_id">Debitar de conta (opcional)</label>
+      <select id="conta_id" name="conta_id">
+        <option value="">(nenhuma)</option>
+        {% for c in contas %}<option value="{{ c['id'] }}">{{ c['nome'] }}</option>{% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Adicionar</button>
+  </form>
+</div>
+
+<div class="cards-grid">
+  <div class="stat-card"><div class="label">Patrimônio investido total</div><div class="value neutro">{{ total | moeda }}</div></div>
+</div>
+
+<div class="panel">
+  <h2>Evolução do patrimônio investido em {{ ano }}</h2>
+  <canvas id="graficoEvolucao" height="220"></canvas>
+</div>
+
+<div class="panel">
+  <h2>Lançamentos de investimento</h2>
+  {% if investimentos %}
+  <table>
+    <thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th>Valor</th><th></th></tr></thead>
+    <tbody>
+      {% for i in investimentos %}
+      <tr>
+        <td>{{ i['data'] }}</td>
+        <td>{{ i['descricao'] }}</td>
+        <td>{{ i['tipo'] }}</td>
+        <td class="{{ 'value positivo' if i['valor'] >= 0 else 'value negativo' }}">{{ i['valor'] | moeda }}</td>
+        <td>
+          <form method="post" action="{{ url_for('financeiro.excluir_investimento', investimento_id=i['id']) }}" onsubmit="return confirm('Excluir este lançamento?');">
+            <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">Nenhum investimento cadastrado para este ano.</div>
+  {% endif %}
+</div>
+
+<script src="{{ url_for('static', filename='js/chart.umd.js') }}"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+  criarGraficoLinha("graficoEvolucao", {{ meses_labels | tojson }}, {{ evolucao_serie | tojson }});
+</script>
+{% endblock %}

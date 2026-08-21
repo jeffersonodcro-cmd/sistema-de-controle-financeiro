@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Controle Financeiro{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand"><span class="dot"></span> Controle Financeiro</div>
+      <nav>
+        <a href="{{ url_for('financeiro.dashboard') }}" class="{{ 'active' if request.endpoint == 'financeiro.dashboard' }}">Dashboard</a>
+        <a href="{{ url_for('financeiro.contas') }}" class="{{ 'active' if request.endpoint == 'financeiro.contas' }}">Contas e Cartões</a>
+        <a href="{{ url_for('financeiro.receitas') }}" class="{{ 'active' if request.endpoint == 'financeiro.receitas' }}">Receitas</a>
+        <a href="{{ url_for('financeiro.despesas') }}" class="{{ 'active' if request.endpoint == 'financeiro.despesas' }}">Despesas</a>
+        <a href="{{ url_for('financeiro.investimentos') }}" class="{{ 'active' if request.endpoint == 'financeiro.investimentos' }}">Investimentos</a>
+        <a href="{{ url_for('financeiro.metas') }}" class="{{ 'active' if request.endpoint == 'financeiro.metas' }}">Metas / Orçamento</a>
+      </nav>
+      <div class="usuario-box">
+        <span class="nome">{{ g.usuario['nome'] }}</span>
+        <a href="{{ url_for('auth.logout') }}">Sair</a>
+      </div>
+    </aside>
+    <main class="main">
+      {% with mensagens = get_flashed_messages(with_categories=true) %}
+        {% for categoria, mensagem in mensagens %}
+          <div class="flash {{ 'sucesso' if categoria == 'sucesso' else '' }}">{{ mensagem }}</div>
+        {% endfor %}
+      {% endwith %}
+      {% block conteudo %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

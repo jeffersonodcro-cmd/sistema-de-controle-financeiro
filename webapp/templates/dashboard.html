@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block titulo %}Dashboard — Controle Financeiro{% endblock %}
+{% block conteudo %}
+<div class="page-header">
+  <div>
+    <h1>Dashboard</h1>
+    <p>Visão geral do seu planejamento financeiro em {{ ano }}.</p>
+  </div>
+</div>
+
+<div class="cards-grid">
+  <div class="stat-card"><div class="label">Saldo total em contas</div><div class="value neutro">{{ saldo | moeda }}</div></div>
+  <div class="stat-card"><div class="label">Receita prevista (mês)</div><div class="value positivo">{{ receita_mes | moeda }}</div></div>
+  <div class="stat-card"><div class="label">Despesas previstas (mês)</div><div class="value negativo">{{ gasto_mes | moeda }}</div></div>
+  <div class="stat-card"><div class="label">Planejado a pagar no ano</div><div class="value" style="color:var(--warning);">{{ pendente_ano | moeda }}</div></div>
+  <div class="stat-card"><div class="label">Patrimônio investido</div><div class="value neutro">{{ investido | moeda }}</div></div>
+</div>
+
+<div class="charts-grid">
+  <div class="panel">
+    <h2>Gastos por categoria (mês atual)</h2>
+    {% if pizza_labels %}
+    <canvas id="graficoPizza" height="220"></canvas>
+    {% else %}
+    <div class="empty-state">Sem despesas neste mês.</div>
+    {% endif %}
+  </div>
+  <div class="panel">
+    <h2>Receitas x Despesas — {{ ano }}</h2>
+    <canvas id="graficoBarras" height="220"></canvas>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/chart.umd.js') }}"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+  criarGraficoPizza("graficoPizza", {{ pizza_labels | tojson }}, {{ pizza_valores | tojson }});
+  criarGraficoBarras("graficoBarras", {{ meses_labels | tojson }}, {{ receitas_serie | tojson }}, {{ despesas_serie | tojson }});
+</script>
+{% endblock %}

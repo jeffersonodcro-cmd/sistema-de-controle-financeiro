@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block titulo %}Receitas — Controle Financeiro{% endblock %}
+{% block conteudo %}
+<div class="page-header">
+  <div>
+    <h1>Receitas</h1>
+    <p>Planeje suas receitas fixas e variáveis para o ano.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Nova receita</h2>
+  <form method="post" class="form-grid">
+    <div class="field">
+      <label for="descricao">Descrição</label>
+      <input type="text" id="descricao" name="descricao" placeholder="Ex: Salário" required>
+    </div>
+    <div class="field">
+      <label for="valor">Valor (R$)</label>
+      <input type="number" step="0.01" id="valor" name="valor" placeholder="0.00" required>
+    </div>
+    <div class="field">
+      <label for="tipo">Tipo</label>
+      <select id="tipo" name="tipo">
+        <option value="fixa">Fixa</option>
+        <option value="variavel">Variável</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="data_prevista">Data prevista</label>
+      <input type="date" id="data_prevista" name="data_prevista" value="{{ hoje }}" required>
+    </div>
+    <div class="field">
+      <label for="conta_id">Conta</label>
+      <select id="conta_id" name="conta_id" required>
+        {% for c in contas %}<option value="{{ c['id'] }}">{{ c['nome'] }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field checkbox-field">
+      <input type="checkbox" id="repetir" name="repetir">
+      <label for="repetir">Repetir todo mês até dez/ano</label>
+    </div>
+    <button type="submit" class="btn btn-primary" {{ 'disabled' if not contas }}>Adicionar</button>
+  </form>
+  {% if not contas %}<p style="color:var(--text-muted);font-size:13px;margin-top:10px;">Cadastre uma conta antes de lançar receitas.</p>{% endif %}
+</div>
+
+<div class="panel">
+  <h2>Receitas do ano</h2>
+  {% if receitas %}
+  <table>
+    <thead>
+      <tr><th>Data</th><th>Descrição</th><th>Tipo</th><th>Valor</th><th>Conta</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for r in receitas %}
+      <tr>
+        <td>{{ r['data_prevista'] }}</td>
+        <td>{{ r['descricao'] }}</td>
+        <td>{{ r['tipo'] }}</td>
+        <td>{{ r['valor'] | moeda }}</td>
+        <td>{{ r['conta_nome'] }}</td>
+        <td><span class="badge {{ 'badge-success' if r['recebida'] else 'badge-muted' }}">{{ 'Recebida' if r['recebida'] else 'Prevista' }}</span></td>
+        <td style="display:flex;gap:8px;">
+          <form method="post" action="{{ url_for('financeiro.toggle_receita', receita_id=r['id']) }}">
+            <input type="hidden" name="recebida" value="{{ '' if r['recebida'] else 'on' }}">
+            <button type="submit" class="btn btn-ghost btn-sm">{{ 'Desfazer' if r['recebida'] else 'Marcar recebida' }}</button>
+          </form>
+          <form method="post" action="{{ url_for('financeiro.excluir_receita', receita_id=r['id']) }}" onsubmit="return confirm('Excluir esta receita?');">
+            <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">Nenhuma receita cadastrada para este ano.</div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Criar conta — Controle Financeiro</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <h1><span class="dot" style="width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,#5b8def,#34c77b);display:inline-block;"></span> Controle Financeiro</h1>
+      <div class="subtitle">Crie sua conta para começar a planejar</div>
+
+      {% with mensagens = get_flashed_messages(with_categories=true) %}
+        {% for categoria, mensagem in mensagens %}
+          <div class="flash {{ 'sucesso' if categoria == 'sucesso' else '' }}">{{ mensagem }}</div>
+        {% endfor %}
+      {% endwith %}
+
+      <form method="post">
+        <div class="field">
+          <label for="nome">Nome</label>
+          <input type="text" id="nome" name="nome" required autofocus>
+        </div>
+        <div class="field">
+          <label for="email">E-mail</label>
+          <input type="email" id="email" name="email" required>
+        </div>
+        <div class="field">
+          <label for="senha">Senha (mín. 6 caracteres)</label>
+          <input type="password" id="senha" name="senha" required minlength="6">
+        </div>
+        <div class="field">
+          <label for="confirmar">Confirmar senha</label>
+          <input type="password" id="confirmar" name="confirmar" required minlength="6">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Criar conta</button>
+      </form>
+      <div class="switch-link">
+        Já tem conta? <a href="{{ url_for('auth.login') }}">Entrar</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

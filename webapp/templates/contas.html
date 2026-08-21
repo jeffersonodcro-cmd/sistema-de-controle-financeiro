@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block titulo %}Contas e Cartões — Controle Financeiro{% endblock %}
+{% block conteudo %}
+<div class="page-header">
+  <div>
+    <h1>Contas e Cartões</h1>
+    <p>Saldo atualizado automaticamente ao confirmar receitas e despesas.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Nova conta / cartão</h2>
+  <form method="post" class="form-grid">
+    <div class="field">
+      <label for="nome">Nome</label>
+      <input type="text" id="nome" name="nome" placeholder="Ex: Conta Corrente" required>
+    </div>
+    <div class="field">
+      <label for="tipo">Tipo</label>
+      <select id="tipo" name="tipo">
+        <option value="conta">Conta</option>
+        <option value="cartao">Cartão</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="saldo_atual">Saldo atual (R$)</label>
+      <input type="number" step="0.01" id="saldo_atual" name="saldo_atual" placeholder="0.00">
+    </div>
+    <div class="field">
+      <label for="limite">Limite (cartão)</label>
+      <input type="number" step="0.01" id="limite" name="limite" placeholder="0.00">
+    </div>
+    <button type="submit" class="btn btn-primary">Adicionar</button>
+  </form>
+</div>
+
+<div class="panel">
+  <h2>Contas cadastradas</h2>
+  {% if contas %}
+  <table>
+    <thead>
+      <tr><th>Nome</th><th>Tipo</th><th>Saldo</th><th>Limite</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for c in contas %}
+      <tr>
+        <td>{{ c['nome'] }}</td>
+        <td>{{ c['tipo'] }}</td>
+        <td class="{{ 'value positivo' if c['saldo_atual'] >= 0 else 'value negativo' }}">{{ c['saldo_atual'] | moeda }}</td>
+        <td>{{ (c['limite'] | moeda) if c['tipo'] == 'cartao' else '-' }}</td>
+        <td>
+          <form method="post" action="{{ url_for('financeiro.excluir_conta', conta_id=c['id']) }}" onsubmit="return confirm('Excluir esta conta?');">
+            <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">Nenhuma conta cadastrada ainda.</div>
+  {% endif %}
+</div>
+{% endblock %}

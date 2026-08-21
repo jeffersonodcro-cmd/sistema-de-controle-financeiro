@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar — Controle Financeiro</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <h1><span class="dot" style="width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,#5b8def,#34c77b);display:inline-block;"></span> Controle Financeiro</h1>
+      <div class="subtitle">Entre com sua conta para continuar</div>
+
+      {% with mensagens = get_flashed_messages(with_categories=true) %}
+        {% for categoria, mensagem in mensagens %}
+          <div class="flash {{ 'sucesso' if categoria == 'sucesso' else '' }}">{{ mensagem }}</div>
+        {% endfor %}
+      {% endwith %}
+
+      <form method="post">
+        <div class="field">
+          <label for="email">E-mail</label>
+          <input type="email" id="email" name="email" required autofocus>
+        </div>
+        <div class="field">
+          <label for="senha">Senha</label>
+          <input type="password" id="senha" name="senha" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+      </form>
+      <div class="switch-link">
+        Ainda não tem conta? <a href="{{ url_for('auth.registro') }}">Criar conta</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block titulo %}Metas / Orçamento — Controle Financeiro{% endblock %}
+{% block conteudo %}
+<div class="page-header">
+  <div>
+    <h1>Metas / Orçamento</h1>
+    <p>Organize suas categorias e acompanhe o modelo 50/30/20.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Renda prevista no mês: {{ renda_mensal | moeda }}</h2>
+  {% for chave, texto in grupos.items() %}
+    {% set gasto = totais_grupo.get(chave, 0) %}
+    {% set meta = recomendado.get(chave, 0) %}
+    {% set pct = (gasto / meta * 100) if meta > 0 else 0 %}
+    <div class="meta-row">
+      <div class="meta-label">{{ texto }}</div>
+      <div class="progress-track"><div class="progress-fill {{ 'over' if pct > 100 }}" style="width:{{ [pct, 100] | min }}%;"></div></div>
+      <div class="meta-value">{{ gasto | moeda }} / {{ meta | moeda }} ({{ '%.0f' | format(pct) }}%)</div>
+    </div>
+  {% endfor %}
+</div>
+
+<div class="panel">
+  <h2>Nova categoria / orçamento mensal</h2>
+  <form method="post" class="form-grid">
+    <div class="field">
+      <label for="nome">Nome</label>
+      <input type="text" id="nome" name="nome" placeholder="Ex: Mercado" required>
+    </div>
+    <div class="field">
+      <label for="grupo_orcamento">Grupo (50/30/20)</label>
+      <select id="grupo_orcamento" name="grupo_orcamento">
+        {% for chave, texto in grupos.items() %}<option value="{{ chave }}">{{ texto }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="orcamento_mensal">Orçamento mensal (R$)</label>
+      <input type="number" step="0.01" id="orcamento_mensal" name="orcamento_mensal" placeholder="0.00">
+    </div>
+    <button type="submit" class="btn btn-primary">Adicionar</button>
+  </form>
+</div>
+
+<div class="panel">
+  <h2>Metas por categoria (mês atual)</h2>
+  {% if linhas %}
+  <table>
+    <thead>
+      <tr><th>Categoria</th><th>Grupo</th><th>Orçamento</th><th>Gasto no mês</th><th></th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for l in linhas %}
+      {% set pct = (l['gasto'] / l['orcamento_mensal'] * 100) if l['orcamento_mensal'] else 0 %}
+      <tr>
+        <td>{{ l['nome'] }}</td>
+        <td>{{ grupos[l['grupo_orcamento']] }}</td>
+        <td>{{ l['orcamento_mensal'] | moeda }}</td>
+        <td class="{{ 'value negativo' if l['orcamento_mensal'] and l['gasto'] > l['orcamento_mensal'] else '' }}">{{ l['gasto'] | moeda }}</td>
+        <td style="min-width:160px;">
+          {% if l['orcamento_mensal'] %}
+          <div class="progress-track"><div class="progress-fill {{ 'over' if pct > 100 }}" style="width:{{ [pct, 100] | min }}%;"></div></div>
+          {% endif %}
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('financeiro.excluir_categoria', categoria_id=l['id']) }}" onsubmit="return confirm('Excluir a categoria {{ l['nome'] }}?');">
+            <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">Cadastre categorias para ver metas.</div>
+  {% endif %}
+</div>
+
+<div class="panel danger-zone">
+  <h2>Zona de risco</h2>
+  <p>Apaga permanentemente todas as suas contas, receitas, despesas, investimentos e categorias, voltando ao estado inicial. Essa ação não pode ser desfeita.</p>
+  <form method="post" action="{{ url_for('financeiro.resetar') }}" onsubmit="return confirm('Tem certeza? Isso vai apagar TODOS os seus dados permanentemente.');" style="display:flex;gap:10px;align-items:center;">
+    <input type="text" name="confirmacao" placeholder='Digite RESETAR para confirmar' required style="max-width:240px;">
+    <button type="submit" class="btn btn-danger">Resetar todos os dados</button>
+  </form>
+</div>
+{% endblock %}

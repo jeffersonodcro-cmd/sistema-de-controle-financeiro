@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block titulo %}Despesas — Controle Financeiro{% endblock %}
+{% block conteudo %}
+<div class="page-header">
+  <div>
+    <h1>Despesas</h1>
+    <p>Lance despesas previstas para o ano, incluindo compras parceladas.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Nova despesa</h2>
+  <form method="post" class="form-grid">
+    <div class="field">
+      <label for="descricao">Descrição</label>
+      <input type="text" id="descricao" name="descricao" placeholder="Ex: Aluguel" required>
+    </div>
+    <div class="field">
+      <label for="valor_total">Valor total (R$)</label>
+      <input type="number" step="0.01" id="valor_total" name="valor_total" placeholder="0.00" required>
+    </div>
+    <div class="field">
+      <label for="categoria_id">Categoria</label>
+      <select id="categoria_id" name="categoria_id" required>
+        {% for c in categorias %}<option value="{{ c['id'] }}">{{ c['nome'] }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="conta_id">Conta/Cartão</label>
+      <select id="conta_id" name="conta_id" required>
+        {% for c in contas %}<option value="{{ c['id'] }}">{{ c['nome'] }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="data_prevista">1ª data prevista</label>
+      <input type="date" id="data_prevista" name="data_prevista" value="{{ hoje }}" required>
+    </div>
+    <div class="field">
+      <label for="parcelas">Parcelas</label>
+      <input type="number" min="1" id="parcelas" name="parcelas" value="1">
+    </div>
+    <button type="submit" class="btn btn-primary" {{ 'disabled' if not categorias or not contas }}>Adicionar</button>
+  </form>
+  {% if not categorias or not contas %}<p style="color:var(--text-muted);font-size:13px;margin-top:10px;">Cadastre uma categoria (aba Metas) e uma conta antes de lançar despesas.</p>{% endif %}
+</div>
+
+<div class="cards-grid">
+  <div class="stat-card"><div class="label">Total previsto no ano</div><div class="value neutro">{{ total | moeda }}</div></div>
+  <div class="stat-card"><div class="label">Já pago</div><div class="value positivo">{{ total_pago | moeda }}</div></div>
+  <div class="stat-card"><div class="label">Ainda planejado (não pago)</div><div class="value negativo">{{ total_pendente | moeda }}</div></div>
+</div>
+
+<div class="panel">
+  <h2>Despesas do ano</h2>
+  {% if despesas %}
+  <table>
+    <thead>
+      <tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Parcela</th><th>Conta</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for d in despesas %}
+      <tr>
+        <td>{{ d['data_prevista'] }}</td>
+        <td>{{ d['descricao'] }}</td>
+        <td>{{ d['categoria_nome'] }}</td>
+        <td>{{ d['valor'] | moeda }}</td>
+        <td>{{ (d['parcela_numero']|string) + '/' + (d['parcelas_total']|string) if d['parcelas_total'] > 1 else '-' }}</td>
+        <td>{{ d['conta_nome'] }}</td>
+        <td><span class="badge {{ 'badge-success' if d['paga'] else 'badge-muted' }}">{{ 'Paga' if d['paga'] else 'Prevista' }}</span></td>
+        <td style="display:flex;gap:8px;">
+          <form method="post" action="{{ url_for('financeiro.toggle_despesa', despesa_id=d['id']) }}">
+            <input type="hidden" name="paga" value="{{ '' if d['paga'] else 'on' }}">
+            <button type="submit" class="btn btn-ghost btn-sm">{{ 'Desfazer' if d['paga'] else 'Marcar paga' }}</button>
+          </form>
+          <form method="post" action="{{ url_for('financeiro.excluir_despesa', despesa_id=d['id']) }}" onsubmit="return confirm('Excluir esta despesa/parcela?');">
+            <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">Nenhuma despesa cadastrada para este ano.</div>
+  {% endif %}
+</div>
+{% endblock %}
