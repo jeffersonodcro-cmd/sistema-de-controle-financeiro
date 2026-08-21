@@ -4,7 +4,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 from datetime import date
 
-from app.utils import formatar_moeda, ano_atual
+from app.utils import formatar_moeda, ano_atual, mes_atual
 
 
 class DespesasTab(ctk.CTkFrame):
@@ -55,6 +55,9 @@ class DespesasTab(ctk.CTkFrame):
 
         self.resumo_label = ctk.CTkLabel(self, text="", font=("", 13, "bold"))
         self.resumo_label.pack(anchor="w", padx=10)
+
+        self.limites_frame = ctk.CTkFrame(self)
+        self.limites_frame.pack(fill="x", padx=10, pady=10)
 
         self.lista_frame = ctk.CTkScrollableFrame(self, label_text="Despesas do ano")
         self.lista_frame.pack(fill="both", expand=True, padx=10, pady=10)
@@ -112,6 +115,10 @@ class DespesasTab(ctk.CTkFrame):
 
         for widget in self.lista_frame.winfo_children():
             widget.destroy()
+        for widget in self.limites_frame.winfo_children():
+            widget.destroy()
+
+        self._desenhar_limites_cartao()
 
         despesas = self.db.listar_despesas(ano_atual())
         if not despesas:
@@ -154,6 +161,40 @@ class DespesasTab(ctk.CTkFrame):
                 row, text="Excluir", width=70, fg_color="#d9534f", hover_color="#b52b2b",
                 command=lambda did=d["id"]: self._excluir(did),
             ).pack(side="left", padx=4)
+
+    def _desenhar_limites_cartao(self):
+        limites = self.db.gasto_por_conta_mes(ano_atual(), mes_atual())
+        if not limites:
+            return
+
+        ctk.CTkLabel(
+            self.limites_frame, text="Limite de gasto mensal por conta/cartão",
+            font=("", 14, "bold"),
+        ).pack(anchor="w", padx=5, pady=(5, 2))
+        ctk.CTkLabel(
+            self.limites_frame,
+            text="Definido no campo \"Limite\" de cada conta (aba Contas e Cartões). Vale todo mês automaticamente.",
+            font=("", 11), text_color="#888888",
+        ).pack(anchor="w", padx=5, pady=(0, 10))
+
+        for c in limites:
+            restante = c["limite"] - c["gasto"]
+            pct = (c["gasto"] / c["limite"]) if c["limite"] > 0 else 0
+            row = ctk.CTkFrame(self.limites_frame, fg_color="transparent")
+            row.pack(fill="x", padx=5, pady=3)
+            ctk.CTkLabel(row, text=c["nome"], width=140, anchor="w").pack(side="left")
+            barra = ctk.CTkProgressBar(row, width=220)
+            barra.set(min(pct, 1.0))
+            if pct > 1.0:
+                barra.configure(progress_color="#d9534f")
+            barra.pack(side="left", padx=10)
+            if restante >= 0:
+                texto = f"gasto {formatar_moeda(c['gasto'])} de {formatar_moeda(c['limite'])} — pode gastar mais {formatar_moeda(restante)}"
+                cor = "#2fa84f"
+            else:
+                texto = f"gasto {formatar_moeda(c['gasto'])} de {formatar_moeda(c['limite'])} — estourou em {formatar_moeda(-restante)}"
+                cor = "#d9534f"
+            ctk.CTkLabel(row, text=texto, text_color=cor).pack(side="left", padx=10)
 
     def _toggle(self, despesa_id, paga):
         self.db.marcar_despesa_paga(despesa_id, paga)

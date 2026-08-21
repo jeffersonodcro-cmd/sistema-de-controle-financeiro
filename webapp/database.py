@@ -350,6 +350,20 @@ def gasto_por_categoria_mes(conn, usuario_id, ano, mes):
     ).fetchall()
 
 
+def gasto_por_conta_mes(conn, usuario_id, ano, mes):
+    """Gasto do mês por conta/cartão, para contas com um limite mensal definido."""
+    return conn.execute(
+        "SELECT c.id, c.nome, c.tipo, c.limite, "
+        "COALESCE(SUM(CASE WHEN strftime('%Y', d.data_prevista) = ? "
+        "AND strftime('%m', d.data_prevista) = ? THEN d.valor END), 0) AS gasto "
+        "FROM contas c "
+        "LEFT JOIN despesas d ON d.conta_id = c.id AND d.usuario_id = c.usuario_id "
+        "WHERE c.usuario_id = ? AND c.limite > 0 "
+        "GROUP BY c.id ORDER BY c.nome",
+        (str(ano), f"{mes:02d}", usuario_id),
+    ).fetchall()
+
+
 # ---------------- Investimentos ----------------
 def listar_investimentos(conn, usuario_id, ano=None):
     if ano:

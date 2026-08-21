@@ -173,6 +173,8 @@ def despesas():
     total = sum(d["valor"] for d in despesas_lista)
     total_pago = sum(d["valor"] for d in despesas_lista if d["paga"])
 
+    limites_cartao = db.gasto_por_conta_mes(g.db, usuario_id, ano_atual(), mes_atual())
+
     return render_template(
         "despesas.html",
         despesas=despesas_lista,
@@ -180,6 +182,7 @@ def despesas():
         contas=db.listar_contas(g.db, usuario_id),
         hoje=date.today().isoformat(),
         total=total, total_pago=total_pago, total_pendente=total - total_pago,
+        limites_cartao=limites_cartao,
     )
 
 

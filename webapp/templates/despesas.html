@@ -50,6 +50,31 @@
   <div class="stat-card"><div class="label">Ainda planejado (não pago)</div><div class="value negativo">{{ total_pendente | moeda }}</div></div>
 </div>
 
+{% if limites_cartao %}
+<div class="panel">
+  <h2>Limite de gasto mensal por conta/cartão</h2>
+  <p style="color:var(--text-muted);font-size:13px;margin:-8px 0 16px;">
+    Definido no campo "Limite" de cada conta (aba Contas e Cartões). Vale todo mês automaticamente, sem precisar relançar — some as despesas lançadas nessa conta com data no mês atual.
+  </p>
+  {% for c in limites_cartao %}
+    {% set restante = c['limite'] - c['gasto'] %}
+    {% set pct = (c['gasto'] / c['limite'] * 100) if c['limite'] > 0 else 0 %}
+    <div class="meta-row">
+      <div class="meta-label">{{ c['nome'] }}</div>
+      <div class="progress-track"><div class="progress-fill {{ 'over' if pct > 100 }}" style="width:{{ [pct, 100] | min }}%;"></div></div>
+      <div class="meta-value">
+        gasto {{ c['gasto'] | moeda }} de {{ c['limite'] | moeda }} —
+        {% if restante >= 0 %}
+          <span style="color:var(--success);">pode gastar mais {{ restante | moeda }}</span>
+        {% else %}
+          <span style="color:var(--danger);">estourou em {{ (-restante) | moeda }}</span>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <div class="panel">
   <h2>Despesas do ano</h2>
   {% if despesas %}

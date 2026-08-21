@@ -298,6 +298,20 @@ class Database:
             (str(ano), f"{mes:02d}"),
         ).fetchall()
 
+    def gasto_por_conta_mes(self, ano, mes):
+        """Gasto do mês por conta/cartão, para contas com um limite mensal definido."""
+        return self.conn.execute(
+            "SELECT c.id, c.nome, c.tipo, c.limite, "
+            "COALESCE(SUM(d.valor), 0) AS gasto "
+            "FROM contas c "
+            "LEFT JOIN despesas d ON d.conta_id = c.id "
+            "  AND strftime('%Y', d.data_prevista) = ? "
+            "  AND strftime('%m', d.data_prevista) = ? "
+            "WHERE c.limite > 0 "
+            "GROUP BY c.id ORDER BY c.nome",
+            (str(ano), f"{mes:02d}"),
+        ).fetchall()
+
     # ---------------- Investimentos ----------------
     def listar_investimentos(self, ano=None):
         if ano:
