@@ -45,6 +45,12 @@
   {% if not contas %}<p style="color:var(--text-muted);font-size:13px;margin-top:10px;">Cadastre uma conta antes de lançar receitas.</p>{% endif %}
 </div>
 
+<div class="cards-grid">
+  <div class="stat-card"><div class="label">Total previsto no ano</div><div class="value neutro">{{ total | moeda }}</div></div>
+  <div class="stat-card"><div class="label">Já recebido</div><div class="value positivo">{{ total_recebido | moeda }}</div></div>
+  <div class="stat-card"><div class="label">Ainda a receber</div><div class="value" style="color:var(--warning);">{{ total_a_receber | moeda }}</div></div>
+</div>
+
 <div class="panel">
   <h2>Receitas do ano</h2>
   {% if receitas %}

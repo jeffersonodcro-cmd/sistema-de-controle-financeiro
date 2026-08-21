@@ -16,7 +16,7 @@
       <input type="text" id="descricao" name="descricao" placeholder="Ex: Aluguel" required>
     </div>
     <div class="field">
-      <label for="valor_total">Valor total (R$)</label>
+      <label for="valor_total" id="label_valor">Valor total (R$)</label>
       <input type="number" step="0.01" id="valor_total" name="valor_total" placeholder="0.00" required>
     </div>
     <div class="field">
@@ -35,14 +35,26 @@
       <label for="data_prevista">1ª data prevista</label>
       <input type="date" id="data_prevista" name="data_prevista" value="{{ hoje }}" required>
     </div>
-    <div class="field">
+    <div class="field" id="campo_parcelas">
       <label for="parcelas">Parcelas</label>
       <input type="number" min="1" id="parcelas" name="parcelas" value="1">
+    </div>
+    <div class="field checkbox-field">
+      <input type="checkbox" id="recorrente" name="recorrente" onchange="alternarRecorrencia()">
+      <label for="recorrente">Despesa fixa: repetir esse valor todo mês até dezembro</label>
     </div>
     <button type="submit" class="btn btn-primary" {{ 'disabled' if not categorias or not contas }}>Adicionar</button>
   </form>
   {% if not categorias or not contas %}<p style="color:var(--text-muted);font-size:13px;margin-top:10px;">Cadastre uma categoria (aba Metas) e uma conta antes de lançar despesas.</p>{% endif %}
 </div>
+
+<script>
+  function alternarRecorrencia() {
+    const recorrente = document.getElementById("recorrente").checked;
+    document.getElementById("campo_parcelas").style.display = recorrente ? "none" : "flex";
+    document.getElementById("label_valor").textContent = recorrente ? "Valor mensal (R$)" : "Valor total (R$)";
+  }
+</script>
 
 <div class="cards-grid">
   <div class="stat-card"><div class="label">Total previsto no ano</div><div class="value neutro">{{ total | moeda }}</div></div>
@@ -80,23 +92,45 @@
   {% if despesas %}
   <table>
     <thead>
-      <tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Parcela</th><th>Conta</th><th>Status</th><th></th></tr>
+      <tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Previsto</th><th>Parcela</th><th>Conta</th><th>Status</th><th>Pago / Economia</th><th></th></tr>
     </thead>
     <tbody>
       {% for d in despesas %}
+      {% set valor_pago = d['valor_pago'] if d['valor_pago'] is not none else d['valor'] %}
+      {% set diferenca = d['valor'] - valor_pago %}
       <tr>
         <td>{{ d['data_prevista'] }}</td>
-        <td>{{ d['descricao'] }}</td>
+        <td>{{ d['descricao'] }}{% if d['recorrente'] %} <span class="badge badge-muted">Fixa</span>{% endif %}</td>
         <td>{{ d['categoria_nome'] }}</td>
         <td>{{ d['valor'] | moeda }}</td>
         <td>{{ (d['parcela_numero']|string) + '/' + (d['parcelas_total']|string) if d['parcelas_total'] > 1 else '-' }}</td>
         <td>{{ d['conta_nome'] }}</td>
         <td><span class="badge {{ 'badge-success' if d['paga'] else 'badge-muted' }}">{{ 'Paga' if d['paga'] else 'Prevista' }}</span></td>
-        <td style="display:flex;gap:8px;">
+        <td>
+          {% if d['paga'] %}
+            {{ valor_pago | moeda }}
+            {% if diferenca > 0.004 %}
+              <br><span style="color:var(--success);font-size:12px;">economizou {{ diferenca | moeda }}</span>
+            {% elif diferenca < -0.004 %}
+              <br><span style="color:var(--danger);font-size:12px;">passou {{ (-diferenca) | moeda }}</span>
+            {% endif %}
+          {% else %}
+            <span style="color:var(--text-muted);">—</span>
+          {% endif %}
+        </td>
+        <td style="display:flex;gap:8px;align-items:center;">
+          {% if d['paga'] %}
           <form method="post" action="{{ url_for('financeiro.toggle_despesa', despesa_id=d['id']) }}">
-            <input type="hidden" name="paga" value="{{ '' if d['paga'] else 'on' }}">
-            <button type="submit" class="btn btn-ghost btn-sm">{{ 'Desfazer' if d['paga'] else 'Marcar paga' }}</button>
+            <input type="hidden" name="paga" value="">
+            <button type="submit" class="btn btn-ghost btn-sm">Desfazer</button>
           </form>
+          {% else %}
+          <form method="post" action="{{ url_for('financeiro.toggle_despesa', despesa_id=d['id']) }}" style="display:flex;gap:6px;align-items:center;">
+            <input type="hidden" name="paga" value="on">
+            <input type="number" step="0.01" name="valor_pago" value="{{ d['valor'] }}" title="Valor efetivamente pago" style="width:90px;">
+            <button type="submit" class="btn btn-ghost btn-sm">Confirmar</button>
+          </form>
+          {% endif %}
           <form method="post" action="{{ url_for('financeiro.excluir_despesa', despesa_id=d['id']) }}" onsubmit="return confirm('Excluir esta despesa/parcela?');">
             <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
           </form>

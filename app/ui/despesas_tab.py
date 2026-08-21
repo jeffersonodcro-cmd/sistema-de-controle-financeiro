@@ -1,7 +1,7 @@
 """Aba de Despesas: lançamentos previstos para o ano, incluindo parceladas."""
 
 import customtkinter as ctk
-from tkinter import messagebox
+from tkinter import messagebox, simpledialog
 from datetime import date
 
 from app.utils import formatar_moeda, ano_atual, mes_atual
@@ -44,10 +44,17 @@ class DespesasTab(ctk.CTkFrame):
         self.data_entry.insert(0, date.today().isoformat())
         self.data_entry.grid(row=2, column=4, padx=5, pady=(0, 10))
 
-        ctk.CTkLabel(form, text="Parcelas").grid(row=1, column=5, padx=5, sticky="w")
+        self.parcelas_label = ctk.CTkLabel(form, text="Parcelas")
+        self.parcelas_label.grid(row=1, column=5, padx=5, sticky="w")
         self.parcelas_entry = ctk.CTkEntry(form, placeholder_text="1")
         self.parcelas_entry.insert(0, "1")
         self.parcelas_entry.grid(row=2, column=5, padx=5, pady=(0, 10))
+
+        self.recorrente_var = ctk.BooleanVar(value=False)
+        ctk.CTkCheckBox(
+            form, text="Despesa fixa: repetir esse valor todo mês até dezembro",
+            variable=self.recorrente_var, command=self._alternar_recorrencia,
+        ).grid(row=3, column=0, columnspan=4, padx=5, pady=(0, 10), sticky="w")
 
         ctk.CTkButton(form, text="Adicionar", command=self._adicionar).grid(
             row=2, column=6, padx=10
@@ -61,6 +68,14 @@ class DespesasTab(ctk.CTkFrame):
 
         self.lista_frame = ctk.CTkScrollableFrame(self, label_text="Despesas do ano")
         self.lista_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+    def _alternar_recorrencia(self):
+        if self.recorrente_var.get():
+            self.parcelas_entry.configure(state="disabled")
+            self.parcelas_label.configure(text_color="#555555")
+        else:
+            self.parcelas_entry.configure(state="normal")
+            self.parcelas_label.configure(text_color=("gray10", "gray90"))
 
     def _categorias_map(self):
         return {c["nome"]: c["id"] for c in self.db.listar_categorias()}
@@ -91,10 +106,15 @@ class DespesasTab(ctk.CTkFrame):
             messagebox.showwarning("Atenção", "Selecione categoria e conta válidas.")
             return
 
-        self.db.criar_despesa_parcelada(
-            desc, valor_total, cat_map[categoria], conta_map[conta],
-            data_prevista.isoformat(), max(1, parcelas),
-        )
+        if self.recorrente_var.get():
+            self.db.criar_despesa_recorrente(
+                desc, valor_total, cat_map[categoria], conta_map[conta], data_prevista.isoformat(),
+            )
+        else:
+            self.db.criar_despesa_parcelada(
+                desc, valor_total, cat_map[categoria], conta_map[conta],
+                data_prevista.isoformat(), max(1, parcelas),
+            )
         self.desc_entry.delete(0, "end")
         self.valor_entry.delete(0, "end")
         self.parcelas_entry.delete(0, "end")
@@ -127,7 +147,10 @@ class DespesasTab(ctk.CTkFrame):
             return
 
         total = sum(d["valor"] for d in despesas)
-        total_pago = sum(d["valor"] for d in despesas if d["paga"])
+        total_pago = sum(
+            (d["valor_pago"] if d["valor_pago"] is not None else d["valor"])
+            for d in despesas if d["paga"]
+        )
         total_pendente = total - total_pago
         self.resumo_label.configure(
             text=(
@@ -143,13 +166,30 @@ class DespesasTab(ctk.CTkFrame):
             status = "Paga" if d["paga"] else "Prevista"
             cor = "#2fa84f" if d["paga"] else "#888888"
             parcela_txt = f"{d['parcela_numero']}/{d['parcelas_total']}" if d["parcelas_total"] > 1 else "-"
+            desc_txt = d["descricao"] + (" [Fixa]" if d["recorrente"] else "")
             ctk.CTkLabel(row, text=d["data_prevista"], width=90, anchor="w").pack(side="left", padx=4)
-            ctk.CTkLabel(row, text=d["descricao"], width=160, anchor="w").pack(side="left", padx=4)
-            ctk.CTkLabel(row, text=d["categoria_nome"], width=110, anchor="w").pack(side="left", padx=4)
-            ctk.CTkLabel(row, text=formatar_moeda(d["valor"]), width=100, anchor="w").pack(side="left", padx=4)
-            ctk.CTkLabel(row, text=parcela_txt, width=50, anchor="w").pack(side="left", padx=4)
-            ctk.CTkLabel(row, text=d["conta_nome"], width=100, anchor="w").pack(side="left", padx=4)
-            ctk.CTkLabel(row, text=status, width=70, anchor="w", text_color=cor).pack(side="left", padx=4)
+            ctk.CTkLabel(row, text=desc_txt, width=170, anchor="w").pack(side="left", padx=4)
+            ctk.CTkLabel(row, text=d["categoria_nome"], width=100, anchor="w").pack(side="left", padx=4)
+            ctk.CTkLabel(row, text=formatar_moeda(d["valor"]), width=95, anchor="w").pack(side="left", padx=4)
+            ctk.CTkLabel(row, text=parcela_txt, width=45, anchor="w").pack(side="left", padx=4)
+            ctk.CTkLabel(row, text=d["conta_nome"], width=95, anchor="w").pack(side="left", padx=4)
+            ctk.CTkLabel(row, text=status, width=60, anchor="w", text_color=cor).pack(side="left", padx=4)
+
+            if d["paga"]:
+                valor_pago = d["valor_pago"] if d["valor_pago"] is not None else d["valor"]
+                diferenca = d["valor"] - valor_pago
+                if diferenca > 0.004:
+                    eco_texto = f"{formatar_moeda(valor_pago)} (economizou {formatar_moeda(diferenca)})"
+                    eco_cor = "#2fa84f"
+                elif diferenca < -0.004:
+                    eco_texto = f"{formatar_moeda(valor_pago)} (passou {formatar_moeda(-diferenca)})"
+                    eco_cor = "#d9534f"
+                else:
+                    eco_texto = formatar_moeda(valor_pago)
+                    eco_cor = "#888888"
+                ctk.CTkLabel(row, text=eco_texto, width=190, anchor="w", text_color=eco_cor).pack(side="left", padx=4)
+            else:
+                ctk.CTkLabel(row, text="", width=190).pack(side="left", padx=4)
 
             var = ctk.BooleanVar(value=bool(d["paga"]))
             ctk.CTkCheckBox(
@@ -197,7 +237,21 @@ class DespesasTab(ctk.CTkFrame):
             ctk.CTkLabel(row, text=texto, text_color=cor).pack(side="left", padx=10)
 
     def _toggle(self, despesa_id, paga):
-        self.db.marcar_despesa_paga(despesa_id, paga)
+        valor_pago = None
+        if paga:
+            despesa = next(
+                (d for d in self.db.listar_despesas(ano_atual()) if d["id"] == despesa_id), None
+            )
+            valor_previsto = despesa["valor"] if despesa else 0
+            valor_pago = simpledialog.askfloat(
+                "Confirmar pagamento",
+                f"Valor previsto: {formatar_moeda(valor_previsto)}\nQuanto você realmente pagou?",
+                initialvalue=valor_previsto, parent=self,
+            )
+            if valor_pago is None:
+                self.refresh()
+                return
+        self.db.marcar_despesa_paga(despesa_id, paga, valor_pago)
         self.refresh()
         if self.on_change:
             self.on_change()

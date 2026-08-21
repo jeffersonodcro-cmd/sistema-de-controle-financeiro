@@ -122,11 +122,16 @@ def receitas():
             flash("Dados inválidos. Confira valor, data e conta selecionada.", "erro")
         return redirect(url_for("financeiro.receitas"))
 
+    receitas_lista = db.listar_receitas(g.db, usuario_id, ano_atual())
+    total = sum(r["valor"] for r in receitas_lista)
+    total_recebido = sum(r["valor"] for r in receitas_lista if r["recebida"])
+
     return render_template(
         "receitas.html",
-        receitas=db.listar_receitas(g.db, usuario_id, ano_atual()),
+        receitas=receitas_lista,
         contas=db.listar_contas(g.db, usuario_id),
         hoje=date.today().isoformat(),
+        total=total, total_recebido=total_recebido, total_a_receber=total - total_recebido,
     )
 
 
@@ -158,20 +163,31 @@ def despesas():
             categoria_id = int(request.form.get("categoria_id"))
             conta_id = int(request.form.get("conta_id"))
             data_prevista = date.fromisoformat(request.form.get("data_prevista"))
-            parcelas = max(1, int(request.form.get("parcelas") or 1))
+            recorrente = request.form.get("recorrente") == "on"
 
-            db.criar_despesa_parcelada(
-                g.db, usuario_id, desc, valor_total, categoria_id, conta_id,
-                data_prevista.isoformat(), parcelas,
-            )
-            flash("Despesa cadastrada com sucesso.", "sucesso")
+            if recorrente:
+                db.criar_despesa_recorrente(
+                    g.db, usuario_id, desc, valor_total, categoria_id, conta_id,
+                    data_prevista.isoformat(),
+                )
+                flash("Despesa fixa cadastrada até dezembro.", "sucesso")
+            else:
+                parcelas = max(1, int(request.form.get("parcelas") or 1))
+                db.criar_despesa_parcelada(
+                    g.db, usuario_id, desc, valor_total, categoria_id, conta_id,
+                    data_prevista.isoformat(), parcelas,
+                )
+                flash("Despesa cadastrada com sucesso.", "sucesso")
         except (ValueError, TypeError):
             flash("Dados inválidos. Confira valor, data, categoria e conta.", "erro")
         return redirect(url_for("financeiro.despesas"))
 
     despesas_lista = db.listar_despesas(g.db, usuario_id, ano_atual())
     total = sum(d["valor"] for d in despesas_lista)
-    total_pago = sum(d["valor"] for d in despesas_lista if d["paga"])
+    total_pago = sum(
+        (d["valor_pago"] if d["valor_pago"] is not None else d["valor"])
+        for d in despesas_lista if d["paga"]
+    )
 
     limites_cartao = db.gasto_por_conta_mes(g.db, usuario_id, ano_atual(), mes_atual())
 
@@ -190,7 +206,13 @@ def despesas():
 def toggle_despesa(despesa_id):
     usuario_id = g.usuario["id"]
     paga = request.form.get("paga") == "on"
-    db.marcar_despesa_paga(g.db, usuario_id, despesa_id, paga)
+    valor_pago = None
+    if paga:
+        try:
+            valor_pago = _parse_float(request.form.get("valor_pago"), "valor pago")
+        except ValueError:
+            valor_pago = None
+    db.marcar_despesa_paga(g.db, usuario_id, despesa_id, paga, valor_pago)
     return redirect(url_for("financeiro.despesas"))
 
 

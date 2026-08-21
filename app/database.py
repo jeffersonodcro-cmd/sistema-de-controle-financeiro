@@ -37,13 +37,15 @@ CREATE TABLE IF NOT EXISTS receitas (
 CREATE TABLE IF NOT EXISTS despesas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     descricao TEXT NOT NULL,
-    valor REAL NOT NULL, -- valor da parcela
+    valor REAL NOT NULL, -- valor previsto (da parcela, ou mensal se recorrente)
+    valor_pago REAL, -- valor efetivamente pago, preenchido ao marcar como paga
     categoria_id INTEGER NOT NULL,
     conta_id INTEGER NOT NULL,
     data_prevista TEXT NOT NULL,
     parcela_numero INTEGER NOT NULL DEFAULT 1,
     parcelas_total INTEGER NOT NULL DEFAULT 1,
-    compra_grupo TEXT, -- agrupa parcelas da mesma compra
+    compra_grupo TEXT, -- agrupa parcelas/recorrências da mesma despesa
+    recorrente INTEGER NOT NULL DEFAULT 0, -- despesa fixa repetida mês a mês
     paga INTEGER NOT NULL DEFAULT 0,
     data_pagamento TEXT,
     FOREIGN KEY (categoria_id) REFERENCES categorias(id),
@@ -85,6 +87,7 @@ class Database:
 
     def _init_schema(self):
         self.conn.executescript(SCHEMA)
+        self._migrar_colunas_faltantes()
         self.conn.commit()
         cur = self.conn.execute("SELECT COUNT(*) FROM categorias")
         if cur.fetchone()[0] == 0:
@@ -93,6 +96,14 @@ class Database:
                 DEFAULT_CATEGORIAS,
             )
             self.conn.commit()
+
+    def _migrar_colunas_faltantes(self):
+        """Adiciona colunas novas em bancos criados por versões antigas do app."""
+        colunas_despesas = {row["name"] for row in self.conn.execute("PRAGMA table_info(despesas)")}
+        if "valor_pago" not in colunas_despesas:
+            self.conn.execute("ALTER TABLE despesas ADD COLUMN valor_pago REAL")
+        if "recorrente" not in colunas_despesas:
+            self.conn.execute("ALTER TABLE despesas ADD COLUMN recorrente INTEGER NOT NULL DEFAULT 0")
 
     # ---------------- Contas ----------------
     def listar_contas(self):
@@ -256,7 +267,29 @@ class Database:
         self.conn.commit()
         return ids
 
-    def marcar_despesa_paga(self, despesa_id, paga=True):
+    def criar_despesa_recorrente(self, descricao, valor_mensal, categoria_id, conta_id, data_inicio):
+        """Cria uma despesa fixa com o MESMO valor todo mês, do mês de início até dezembro."""
+        import uuid
+        from dateutil.relativedelta import relativedelta
+
+        compra_grupo = str(uuid.uuid4())
+        data_base = date.fromisoformat(data_inicio)
+        ids = []
+        mes = data_base.month
+        while mes <= 12:
+            data_lanc = data_base + relativedelta(months=(mes - data_base.month))
+            cur = self.conn.execute(
+                "INSERT INTO despesas (descricao, valor, categoria_id, conta_id, "
+                "data_prevista, parcela_numero, parcelas_total, compra_grupo, recorrente) "
+                "VALUES (?, ?, ?, ?, ?, 1, 1, ?, 1)",
+                (descricao, valor_mensal, categoria_id, conta_id, data_lanc.isoformat(), compra_grupo),
+            )
+            ids.append(cur.lastrowid)
+            mes += 1
+        self.conn.commit()
+        return ids
+
+    def marcar_despesa_paga(self, despesa_id, paga=True, valor_pago=None):
         despesa = self.conn.execute(
             "SELECT * FROM despesas WHERE id = ?", (despesa_id,)
         ).fetchone()
@@ -264,15 +297,17 @@ class Database:
             return
         ja_paga = bool(despesa["paga"])
         if paga and not ja_paga:
-            self.ajustar_saldo_conta(despesa["conta_id"], -despesa["valor"])
+            valor_efetivo = valor_pago if valor_pago is not None else despesa["valor"]
+            self.ajustar_saldo_conta(despesa["conta_id"], -valor_efetivo)
             self.conn.execute(
-                "UPDATE despesas SET paga=1, data_pagamento=? WHERE id=?",
-                (date.today().isoformat(), despesa_id),
+                "UPDATE despesas SET paga=1, data_pagamento=?, valor_pago=? WHERE id=?",
+                (date.today().isoformat(), valor_efetivo, despesa_id),
             )
         elif not paga and ja_paga:
-            self.ajustar_saldo_conta(despesa["conta_id"], despesa["valor"])
+            valor_efetivo = despesa["valor_pago"] if despesa["valor_pago"] is not None else despesa["valor"]
+            self.ajustar_saldo_conta(despesa["conta_id"], valor_efetivo)
             self.conn.execute(
-                "UPDATE despesas SET paga=0, data_pagamento=NULL WHERE id=?",
+                "UPDATE despesas SET paga=0, data_pagamento=NULL, valor_pago=NULL WHERE id=?",
                 (despesa_id,),
             )
         self.conn.commit()
@@ -282,14 +317,15 @@ class Database:
             "SELECT * FROM despesas WHERE id = ?", (despesa_id,)
         ).fetchone()
         if despesa and despesa["paga"]:
-            self.ajustar_saldo_conta(despesa["conta_id"], despesa["valor"])
+            valor_efetivo = despesa["valor_pago"] if despesa["valor_pago"] is not None else despesa["valor"]
+            self.ajustar_saldo_conta(despesa["conta_id"], valor_efetivo)
         self.conn.execute("DELETE FROM despesas WHERE id = ?", (despesa_id,))
         self.conn.commit()
 
     def gasto_por_categoria_mes(self, ano, mes):
         return self.conn.execute(
             "SELECT c.id, c.nome, c.grupo_orcamento, c.orcamento_mensal, "
-            "COALESCE(SUM(d.valor), 0) AS gasto "
+            "COALESCE(SUM(CASE WHEN d.paga = 1 THEN COALESCE(d.valor_pago, d.valor) ELSE d.valor END), 0) AS gasto "
             "FROM categorias c "
             "LEFT JOIN despesas d ON d.categoria_id = c.id "
             "  AND strftime('%Y', d.data_prevista) = ? "
@@ -299,10 +335,11 @@ class Database:
         ).fetchall()
 
     def gasto_por_conta_mes(self, ano, mes):
-        """Gasto do mês por conta/cartão, para contas com um limite mensal definido."""
+        """Gasto do mês por conta/cartão, para contas com um limite mensal definido.
+        Usa o valor efetivamente pago quando a despesa já foi paga; senão, o valor previsto."""
         return self.conn.execute(
             "SELECT c.id, c.nome, c.tipo, c.limite, "
-            "COALESCE(SUM(d.valor), 0) AS gasto "
+            "COALESCE(SUM(CASE WHEN d.paga = 1 THEN COALESCE(d.valor_pago, d.valor) ELSE d.valor END), 0) AS gasto "
             "FROM contas c "
             "LEFT JOIN despesas d ON d.conta_id = c.id "
             "  AND strftime('%Y', d.data_prevista) = ? "

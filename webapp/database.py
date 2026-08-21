@@ -57,12 +57,14 @@ CREATE TABLE IF NOT EXISTS despesas (
     usuario_id INTEGER NOT NULL,
     descricao TEXT NOT NULL,
     valor REAL NOT NULL,
+    valor_pago REAL,
     categoria_id INTEGER NOT NULL,
     conta_id INTEGER NOT NULL,
     data_prevista TEXT NOT NULL,
     parcela_numero INTEGER NOT NULL DEFAULT 1,
     parcelas_total INTEGER NOT NULL DEFAULT 1,
     compra_grupo TEXT,
+    recorrente INTEGER NOT NULL DEFAULT 0,
     paga INTEGER NOT NULL DEFAULT 0,
     data_pagamento TEXT,
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
@@ -106,7 +108,17 @@ def conectar(path: Path = DB_PATH) -> sqlite3.Connection:
 
 def inicializar_schema(conn: sqlite3.Connection):
     conn.executescript(SCHEMA)
+    _migrar_colunas_faltantes(conn)
     conn.commit()
+
+
+def _migrar_colunas_faltantes(conn: sqlite3.Connection):
+    """Adiciona colunas novas em bancos criados por versões antigas do app."""
+    colunas_despesas = {row["name"] for row in conn.execute("PRAGMA table_info(despesas)")}
+    if "valor_pago" not in colunas_despesas:
+        conn.execute("ALTER TABLE despesas ADD COLUMN valor_pago REAL")
+    if "recorrente" not in colunas_despesas:
+        conn.execute("ALTER TABLE despesas ADD COLUMN recorrente INTEGER NOT NULL DEFAULT 0")
 
 
 # ---------------- Usuários ----------------
@@ -305,7 +317,30 @@ def criar_despesa_parcelada(
     return ids
 
 
-def marcar_despesa_paga(conn, usuario_id, despesa_id, paga=True):
+def criar_despesa_recorrente(conn, usuario_id, descricao, valor_mensal, categoria_id, conta_id, data_inicio):
+    """Cria uma despesa fixa com o MESMO valor todo mês, do mês de início até dezembro."""
+    compra_grupo = str(uuid.uuid4())
+    data_base = date.fromisoformat(data_inicio)
+    ids = []
+    mes_atual = data_base.month
+    while mes_atual <= 12:
+        data_lanc = data_base + relativedelta(months=(mes_atual - data_base.month))
+        cur = conn.execute(
+            "INSERT INTO despesas (usuario_id, descricao, valor, categoria_id, conta_id, "
+            "data_prevista, parcela_numero, parcelas_total, compra_grupo, recorrente) "
+            "VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?, 1)",
+            (
+                usuario_id, descricao, valor_mensal, categoria_id, conta_id,
+                data_lanc.isoformat(), compra_grupo,
+            ),
+        )
+        ids.append(cur.lastrowid)
+        mes_atual += 1
+    conn.commit()
+    return ids
+
+
+def marcar_despesa_paga(conn, usuario_id, despesa_id, paga=True, valor_pago=None):
     despesa = conn.execute(
         "SELECT * FROM despesas WHERE id = ? AND usuario_id = ?", (despesa_id, usuario_id)
     ).fetchone()
@@ -313,15 +348,17 @@ def marcar_despesa_paga(conn, usuario_id, despesa_id, paga=True):
         return
     ja_paga = bool(despesa["paga"])
     if paga and not ja_paga:
-        ajustar_saldo_conta(conn, usuario_id, despesa["conta_id"], -despesa["valor"])
+        valor_efetivo = valor_pago if valor_pago is not None else despesa["valor"]
+        ajustar_saldo_conta(conn, usuario_id, despesa["conta_id"], -valor_efetivo)
         conn.execute(
-            "UPDATE despesas SET paga=1, data_pagamento=? WHERE id=? AND usuario_id=?",
-            (date.today().isoformat(), despesa_id, usuario_id),
+            "UPDATE despesas SET paga=1, data_pagamento=?, valor_pago=? WHERE id=? AND usuario_id=?",
+            (date.today().isoformat(), valor_efetivo, despesa_id, usuario_id),
         )
     elif not paga and ja_paga:
-        ajustar_saldo_conta(conn, usuario_id, despesa["conta_id"], despesa["valor"])
+        valor_efetivo = despesa["valor_pago"] if despesa["valor_pago"] is not None else despesa["valor"]
+        ajustar_saldo_conta(conn, usuario_id, despesa["conta_id"], valor_efetivo)
         conn.execute(
-            "UPDATE despesas SET paga=0, data_pagamento=NULL WHERE id=? AND usuario_id=?",
+            "UPDATE despesas SET paga=0, data_pagamento=NULL, valor_pago=NULL WHERE id=? AND usuario_id=?",
             (despesa_id, usuario_id),
         )
     conn.commit()
@@ -332,7 +369,8 @@ def excluir_despesa(conn, usuario_id, despesa_id):
         "SELECT * FROM despesas WHERE id = ? AND usuario_id = ?", (despesa_id, usuario_id)
     ).fetchone()
     if despesa and despesa["paga"]:
-        ajustar_saldo_conta(conn, usuario_id, despesa["conta_id"], despesa["valor"])
+        valor_efetivo = despesa["valor_pago"] if despesa["valor_pago"] is not None else despesa["valor"]
+        ajustar_saldo_conta(conn, usuario_id, despesa["conta_id"], valor_efetivo)
     conn.execute("DELETE FROM despesas WHERE id = ? AND usuario_id = ?", (despesa_id, usuario_id))
     conn.commit()
 
@@ -341,7 +379,9 @@ def gasto_por_categoria_mes(conn, usuario_id, ano, mes):
     return conn.execute(
         "SELECT c.id, c.nome, c.grupo_orcamento, c.orcamento_mensal, "
         "COALESCE(SUM(CASE WHEN strftime('%Y', d.data_prevista) = ? "
-        "AND strftime('%m', d.data_prevista) = ? THEN d.valor END), 0) AS gasto "
+        "AND strftime('%m', d.data_prevista) = ? "
+        "THEN (CASE WHEN d.paga = 1 THEN COALESCE(d.valor_pago, d.valor) ELSE d.valor END) "
+        "END), 0) AS gasto "
         "FROM categorias c "
         "LEFT JOIN despesas d ON d.categoria_id = c.id AND d.usuario_id = c.usuario_id "
         "WHERE c.usuario_id = ? "
@@ -351,11 +391,14 @@ def gasto_por_categoria_mes(conn, usuario_id, ano, mes):
 
 
 def gasto_por_conta_mes(conn, usuario_id, ano, mes):
-    """Gasto do mês por conta/cartão, para contas com um limite mensal definido."""
+    """Gasto do mês por conta/cartão, para contas com um limite mensal definido.
+    Usa o valor efetivamente pago quando a despesa já foi paga; senão, o valor previsto."""
     return conn.execute(
         "SELECT c.id, c.nome, c.tipo, c.limite, "
         "COALESCE(SUM(CASE WHEN strftime('%Y', d.data_prevista) = ? "
-        "AND strftime('%m', d.data_prevista) = ? THEN d.valor END), 0) AS gasto "
+        "AND strftime('%m', d.data_prevista) = ? "
+        "THEN (CASE WHEN d.paga = 1 THEN COALESCE(d.valor_pago, d.valor) ELSE d.valor END) "
+        "END), 0) AS gasto "
         "FROM contas c "
         "LEFT JOIN despesas d ON d.conta_id = c.id AND d.usuario_id = c.usuario_id "
         "WHERE c.usuario_id = ? AND c.limite > 0 "

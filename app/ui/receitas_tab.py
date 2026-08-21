@@ -53,6 +53,9 @@ class ReceitasTab(ctk.CTkFrame):
             row=2, column=6, padx=10
         )
 
+        self.resumo_label = ctk.CTkLabel(self, text="", font=("", 13, "bold"))
+        self.resumo_label.pack(anchor="w", padx=10)
+
         self.lista_frame = ctk.CTkScrollableFrame(self, label_text="Receitas do ano")
         self.lista_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -110,7 +113,19 @@ class ReceitasTab(ctk.CTkFrame):
         receitas = self.db.listar_receitas(ano_atual())
         if not receitas:
             ctk.CTkLabel(self.lista_frame, text="Nenhuma receita cadastrada para este ano.").pack(pady=10)
+            self.resumo_label.configure(text="")
             return
+
+        total = sum(r["valor"] for r in receitas)
+        total_recebido = sum(r["valor"] for r in receitas if r["recebida"])
+        total_a_receber = total - total_recebido
+        self.resumo_label.configure(
+            text=(
+                f"Total previsto no ano: {formatar_moeda(total)}   |   "
+                f"Já recebido: {formatar_moeda(total_recebido)}   |   "
+                f"Ainda a receber: {formatar_moeda(total_a_receber)}"
+            )
+        )
 
         for r in receitas:
             row = ctk.CTkFrame(self.lista_frame)
