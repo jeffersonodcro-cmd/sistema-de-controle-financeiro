@@ -52,14 +52,47 @@ def dashboard():
     for d in despesas:
         despesas_mes_map[int(d["data_prevista"][5:7])] += d["valor"]
 
+    # --- Dados de apoio para o layout (derivados dos mesmos dados acima) ---
+    mes_anterior = mes - 1 if mes > 1 else None
+    receita_mes_anterior = receitas_mes_map.get(mes_anterior) if mes_anterior else None
+    despesa_mes_anterior = despesas_mes_map.get(mes_anterior) if mes_anterior else None
+
+    orcamento_mes = sum(l["orcamento_mensal"] or 0 for l in linhas_categoria)
+    despesas_pagas_mes = sum(
+        (d["valor_pago"] if d["valor_pago"] is not None else d["valor"])
+        for d in despesas if d["paga"] and d["data_prevista"][:7] == f"{ano}-{mes:02d}"
+    )
+
+    total_despesas_ano = sum(d["valor"] for d in despesas)
+    pago_ano = total_despesas_ano - pendente_ano
+    quitado_ano_pct = (pago_ano / total_despesas_ano) if total_despesas_ano > 0 else 0.0
+
+    hoje = date.today()
+    hoje_iso = hoje.isoformat()
+    proximos_vencimentos = [
+        {**dict(d), "dias_para_vencer": (date.fromisoformat(d["data_prevista"]) - hoje).days}
+        for d in sorted(
+            (d for d in despesas if not d["paga"] and d["data_prevista"] >= hoje_iso),
+            key=lambda d: d["data_prevista"],
+        )[:3]
+    ]
+
     return render_template(
         "dashboard.html",
         saldo=saldo, gasto_mes=gasto_mes, receita_mes=receita_mes,
-        pendente_ano=pendente_ano, investido=investido, ano=ano,
+        pendente_ano=pendente_ano, investido=investido, ano=ano, mes=mes,
         pizza_labels=pizza_labels, pizza_valores=pizza_valores,
         meses_labels=[m[:3] for m in NOMES_MESES],
         receitas_serie=[round(receitas_mes_map[m], 2) for m in range(1, 13)],
         despesas_serie=[round(despesas_mes_map[m], 2) for m in range(1, 13)],
+        nome_mes_atual=NOMES_MESES[mes - 1],
+        receita_mes_anterior=receita_mes_anterior,
+        despesa_mes_anterior=despesa_mes_anterior,
+        orcamento_mes=orcamento_mes,
+        despesas_pagas_mes=despesas_pagas_mes,
+        quitado_ano_pct=quitado_ano_pct,
+        proximos_vencimentos=proximos_vencimentos,
+        hoje=hoje_iso,
     )
 
 

@@ -1,32 +1,165 @@
 {% extends "base.html" %}
 {% block titulo %}Dashboard — Controle Financeiro{% endblock %}
+
+{% block sidebar_extra %}
+{% set pct_orcamento = (despesas_pagas_mes / orcamento_mes) if orcamento_mes > 0 else 0 %}
+<div class="sidebar-orcamento">
+  <div class="sidebar-orcamento-topo">
+    <span>Orçamento do mês</span>
+    <span class="mono">{{ (pct_orcamento * 100) | round | int }}%</span>
+  </div>
+  <div class="mini-progress-track">
+    <div class="mini-progress-fill" style="width: {{ [pct_orcamento * 100, 100] | min }}%;"></div>
+  </div>
+  <div class="sidebar-orcamento-legenda">
+    <span class="mono">{{ despesas_pagas_mes | moeda }}</span> de <span class="mono">{{ orcamento_mes | moeda }}</span>
+  </div>
+</div>
+{% endblock %}
+
 {% block conteudo %}
 <div class="page-header">
   <div>
+    <p class="sobrancelha">{{ nome_mes_atual | upper }} DE {{ ano }}</p>
     <h1>Dashboard</h1>
-    <p>Visão geral do seu planejamento financeiro em {{ ano }}.</p>
+    <p class="subtitulo">Visão geral do seu planejamento financeiro em {{ ano }}.</p>
+  </div>
+  <div class="page-header-acoes">
+    <div class="segmented" role="tablist" aria-label="Período">
+      <button type="button" class="segmented-item active" aria-pressed="true">Mês</button>
+      <button type="button" class="segmented-item" aria-pressed="false">Ano</button>
+    </div>
+    <a href="{{ url_for('financeiro.despesas') }}" class="btn btn-primary">+ Nova transação</a>
   </div>
 </div>
 
-<div class="cards-grid">
-  <div class="stat-card"><div class="label">Saldo total em contas</div><div class="value neutro">{{ saldo | moeda }}</div></div>
-  <div class="stat-card"><div class="label">Receita prevista (mês)</div><div class="value positivo">{{ receita_mes | moeda }}</div></div>
-  <div class="stat-card"><div class="label">Despesas previstas (mês)</div><div class="value negativo">{{ gasto_mes | moeda }}</div></div>
-  <div class="stat-card"><div class="label">Planejado a pagar no ano</div><div class="value" style="color:var(--warning);">{{ pendente_ano | moeda }}</div></div>
-  <div class="stat-card"><div class="label">Patrimônio investido</div><div class="value neutro">{{ investido | moeda }}</div></div>
+{% set saldo_partes = (saldo | moeda).split(' ', 1) %}
+<div class="kpi-grid">
+  <div class="stat-card stat-hero {{ 'is-negativo' if saldo < 0 else 'is-positivo' }}">
+    <div class="hero-glow"></div>
+    <div class="hero-topo">
+      <span class="label">Saldo total em contas</span>
+      <span class="badge-semantico {{ 'badge-negativo' if saldo < 0 else 'badge-positivo' }}">{{ 'NEGATIVO' if saldo < 0 else 'POSITIVO' }}</span>
+    </div>
+    <div class="value hero-value mono"><span class="cifrao">{{ saldo_partes[0] }}</span> {{ saldo_partes[1] }}</div>
+    <div class="hero-rodape">
+      <div>
+        <span class="hero-rodape-label">Patrimônio investido</span>
+        <span class="mono hero-rodape-valor" style="color: var(--invest);">{{ investido | moeda }}</span>
+      </div>
+      <div>
+        <span class="hero-rodape-label">Posição líquida</span>
+        <span class="mono hero-rodape-valor">{{ (saldo + investido) | moeda }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="hero-topo">
+      <span class="label">Receita prevista</span>
+      <span class="badge-mes">MÊS</span>
+    </div>
+    <div class="value mono" style="color: var(--accent);">{{ receita_mes | moeda }}</div>
+    <div class="card-contexto">
+      {% if receita_mes_anterior is not none and receita_mes_anterior > 0 %}
+        {% set variacao = ((receita_mes - receita_mes_anterior) / receita_mes_anterior) * 100 %}
+        <span style="color: {{ 'var(--accent)' if variacao >= 0 else 'var(--danger)' }};">{{ '▲' if variacao >= 0 else '▼' }} {{ variacao | abs | round(1) }}% vs. mês anterior</span>
+      {% else %}
+        <span class="dim">Sem comparativo do mês anterior</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="hero-topo">
+      <span class="label">Despesas previstas</span>
+      <span class="badge-mes">MÊS</span>
+    </div>
+    <div class="value mono" style="color: var(--danger);">{{ gasto_mes | moeda }}</div>
+    <div class="card-contexto">
+      {% if gasto_mes == 0 %}
+        <span class="dim">Nenhuma despesa lançada ainda</span>
+      {% elif despesa_mes_anterior is not none and despesa_mes_anterior > 0 %}
+        {% set variacao = ((gasto_mes - despesa_mes_anterior) / despesa_mes_anterior) * 100 %}
+        <span style="color: {{ 'var(--danger)' if variacao >= 0 else 'var(--accent)' }};">{{ '▲' if variacao >= 0 else '▼' }} {{ variacao | abs | round(1) }}% vs. mês anterior</span>
+      {% else %}
+        <span class="dim">Sem comparativo do mês anterior</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="hero-topo">
+      <span class="label">Planejado a pagar no ano</span>
+    </div>
+    <div class="value mono" style="color: var(--warning);">{{ pendente_ano | moeda }}</div>
+    <div class="quitado-linha">
+      <div class="quitado-texto">
+        <span class="dim">Já quitado</span>
+        <span class="mono">{{ (quitado_ano_pct * 100) | round | int }}%</span>
+      </div>
+      <div class="mini-progress-track w120">
+        <div class="mini-progress-fill" style="width: {{ [quitado_ano_pct * 100, 100] | min }}%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-card stat-vencimentos">
+    <div class="hero-topo">
+      <span class="label">Próximos vencimentos</span>
+      <a href="{{ url_for('financeiro.despesas') }}" class="ver-todos">Ver todos</a>
+    </div>
+    {% if proximos_vencimentos %}
+    <div class="vencimentos-lista">
+      {% for d in proximos_vencimentos %}
+        {% set dias = d['dias_para_vencer'] %}
+        <div class="vencimento-item">
+          <div class="vencimento-dia mono {{ 'urgente' if dias <= 3 else ('atencao' if dias <= 10 else '') }}">{{ d['data_prevista'][8:10] }}</div>
+          <div class="vencimento-info">
+            <div class="vencimento-desc">{{ d['descricao'] }}</div>
+            <div class="vencimento-meta dim">{{ d['categoria_nome'] }} · {{ d['conta_nome'] }}</div>
+          </div>
+          <div class="vencimento-valor mono">{{ d['valor'] | moeda }}</div>
+        </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">Nenhum vencimento próximo.</div>
+    {% endif %}
+  </div>
 </div>
 
 <div class="charts-grid">
   <div class="panel">
-    <h2>Gastos por categoria (mês atual)</h2>
+    <h2>Gastos por categoria</h2>
+    <p class="panel-subtitulo">{{ nome_mes_atual }} de {{ ano }}</p>
     {% if pizza_labels %}
-    <canvas id="graficoPizza" height="220"></canvas>
+    <div class="donut-wrap">
+      <canvas id="graficoPizza" height="168"></canvas>
+    </div>
     {% else %}
-    <div class="empty-state">Sem despesas neste mês.</div>
+    <div class="donut-vazio-wrap">
+      <div class="donut-vazio">
+        <span class="mono">R$ 0</span>
+        <span class="donut-vazio-legenda">SEM DADOS</span>
+      </div>
+      <p class="empty-titulo">Sem despesas neste mês</p>
+      <p class="empty-sub dim">Lance suas despesas previstas para acompanhar os gastos por categoria aqui.</p>
+      <a href="{{ url_for('financeiro.despesas') }}" class="btn btn-ghost btn-sm">Lançar despesas</a>
+    </div>
     {% endif %}
   </div>
   <div class="panel">
-    <h2>Receitas x Despesas — {{ ano }}</h2>
+    <div class="panel-cabecalho">
+      <div>
+        <h2>Receitas x Despesas</h2>
+        <p class="panel-subtitulo">Projeção {{ ano }}</p>
+      </div>
+      <div class="legenda-grafico">
+        <span><i style="background: var(--accent);"></i>Receitas</span>
+        <span><i style="background: var(--danger);"></i>Despesas</span>
+      </div>
+    </div>
     <canvas id="graficoBarras" height="220"></canvas>
   </div>
 </div>
