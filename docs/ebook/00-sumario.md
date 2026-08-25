@@ -28,5 +28,5 @@
 | 5 | Irregularidades | Aprovado pelo autor |
 | 6 | Pagamento e prorrogação | Aprovado pelo autor |
 | 7 | Erros mais comuns | Aprovado pelo autor |
-| 8 | Modelos prontos | Rascunho enviado para aprovação |
-| — | Introdução / Conclusão | Pendente |
+| 8 | Modelos prontos | Aprovado pelo autor |
+| — | Introdução / Conclusão | Rascunho enviado para aprovação |
