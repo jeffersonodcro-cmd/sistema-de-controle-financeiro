@@ -23,8 +23,8 @@
 |---|----------|--------|
 | 1 | O que é ser fiscal de contrato | Aprovado pelo autor |
 | 2 | Antes de começar | Aprovado pelo autor |
-| 3 | Acompanhamento da execução | Rascunho enviado para aprovação |
-| 4 | Recebimento do objeto | Pendente |
+| 3 | Acompanhamento da execução | Aprovado pelo autor |
+| 4 | Recebimento do objeto | Rascunho enviado para aprovação |
 | 5 | Irregularidades | Pendente |
 | 6 | Pagamento e prorrogação | Pendente |
 | 7 | Erros mais comuns | Pendente |
