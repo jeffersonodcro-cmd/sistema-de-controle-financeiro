@@ -27,6 +27,6 @@
 | 4 | Recebimento do objeto | Aprovado pelo autor |
 | 5 | Irregularidades | Aprovado pelo autor |
 | 6 | Pagamento e prorrogação | Aprovado pelo autor |
-| 7 | Erros mais comuns | Rascunho enviado para aprovação |
-| 8 | Modelos prontos | Pendente |
+| 7 | Erros mais comuns | Aprovado pelo autor |
+| 8 | Modelos prontos | Rascunho enviado para aprovação |
 | — | Introdução / Conclusão | Pendente |
