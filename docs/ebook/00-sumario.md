@@ -26,7 +26,7 @@
 | 3 | Acompanhamento da execução | Aprovado pelo autor |
 | 4 | Recebimento do objeto | Aprovado pelo autor |
 | 5 | Irregularidades | Aprovado pelo autor |
-| 6 | Pagamento e prorrogação | Rascunho enviado para aprovação |
-| 7 | Erros mais comuns | Pendente |
+| 6 | Pagamento e prorrogação | Aprovado pelo autor |
+| 7 | Erros mais comuns | Rascunho enviado para aprovação |
 | 8 | Modelos prontos | Pendente |
 | — | Introdução / Conclusão | Pendente |
