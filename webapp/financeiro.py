@@ -26,6 +26,29 @@ def exigir_login():
     pass
 
 
+@bp.context_processor
+def dados_sidebar_orcamento():
+    """Dados do orçamento do mês atual, exibidos no widget fixo da sidebar
+    em todas as páginas (o Dashboard sobrescreve com os mesmos nomes)."""
+    usuario_id = g.usuario["id"]
+    ano, mes = ano_atual(), mes_atual()
+
+    linhas_categoria = db.gasto_por_categoria_mes(g.db, usuario_id, ano, mes)
+    despesas_mes = db.listar_despesas(g.db, usuario_id, ano)
+
+    orcamento_mes = sum(l["orcamento_mensal"] or 0 for l in linhas_categoria)
+    despesas_pagas_mes = sum(
+        (d["valor_pago"] if d["valor_pago"] is not None else d["valor"])
+        for d in despesas_mes if d["paga"] and d["data_prevista"][:7] == f"{ano}-{mes:02d}"
+    )
+
+    return dict(
+        orcamento_mes=orcamento_mes,
+        despesas_pagas_mes=despesas_pagas_mes,
+        nome_mes_atual=NOMES_MESES[mes - 1],
+    )
+
+
 # ---------------- Dashboard ----------------
 @bp.route("/")
 def dashboard():
@@ -52,14 +75,47 @@ def dashboard():
     for d in despesas:
         despesas_mes_map[int(d["data_prevista"][5:7])] += d["valor"]
 
+    # --- Dados de apoio para o layout (derivados dos mesmos dados acima) ---
+    mes_anterior = mes - 1 if mes > 1 else None
+    receita_mes_anterior = receitas_mes_map.get(mes_anterior) if mes_anterior else None
+    despesa_mes_anterior = despesas_mes_map.get(mes_anterior) if mes_anterior else None
+
+    orcamento_mes = sum(l["orcamento_mensal"] or 0 for l in linhas_categoria)
+    despesas_pagas_mes = sum(
+        (d["valor_pago"] if d["valor_pago"] is not None else d["valor"])
+        for d in despesas if d["paga"] and d["data_prevista"][:7] == f"{ano}-{mes:02d}"
+    )
+
+    total_despesas_ano = sum(d["valor"] for d in despesas)
+    pago_ano = total_despesas_ano - pendente_ano
+    quitado_ano_pct = (pago_ano / total_despesas_ano) if total_despesas_ano > 0 else 0.0
+
+    hoje = date.today()
+    hoje_iso = hoje.isoformat()
+    proximos_vencimentos = [
+        {**dict(d), "dias_para_vencer": (date.fromisoformat(d["data_prevista"]) - hoje).days}
+        for d in sorted(
+            (d for d in despesas if not d["paga"] and d["data_prevista"] >= hoje_iso),
+            key=lambda d: d["data_prevista"],
+        )[:3]
+    ]
+
     return render_template(
         "dashboard.html",
         saldo=saldo, gasto_mes=gasto_mes, receita_mes=receita_mes,
-        pendente_ano=pendente_ano, investido=investido, ano=ano,
+        pendente_ano=pendente_ano, investido=investido, ano=ano, mes=mes,
         pizza_labels=pizza_labels, pizza_valores=pizza_valores,
         meses_labels=[m[:3] for m in NOMES_MESES],
         receitas_serie=[round(receitas_mes_map[m], 2) for m in range(1, 13)],
         despesas_serie=[round(despesas_mes_map[m], 2) for m in range(1, 13)],
+        nome_mes_atual=NOMES_MESES[mes - 1],
+        receita_mes_anterior=receita_mes_anterior,
+        despesa_mes_anterior=despesa_mes_anterior,
+        orcamento_mes=orcamento_mes,
+        despesas_pagas_mes=despesas_pagas_mes,
+        quitado_ano_pct=quitado_ano_pct,
+        proximos_vencimentos=proximos_vencimentos,
+        hoje=hoje_iso,
     )
 
 
@@ -244,25 +300,54 @@ def investimentos():
             flash("Dados inválidos. Confira valor e data.", "erro")
         return redirect(url_for("financeiro.investimentos"))
 
-    ano = ano_atual()
+    ano, mes = ano_atual(), mes_atual()
     investimentos_lista = db.listar_investimentos(g.db, usuario_id, ano)
     rows = db.evolucao_investimentos(g.db, usuario_id, ano)
     acumulado_por_mes = {i: 0.0 for i in range(1, 13)}
     saldo_acumulado = 0.0
     valores_por_mes = {int(r["mes_ref"][5:7]): r["total"] for r in rows}
-    for mes in range(1, 13):
-        saldo_acumulado += valores_por_mes.get(mes, 0.0)
-        acumulado_por_mes[mes] = saldo_acumulado
+    for m in range(1, 13):
+        saldo_acumulado += valores_por_mes.get(m, 0.0)
+        acumulado_por_mes[m] = saldo_acumulado
+
+    total = db.patrimonio_investido_total(g.db, usuario_id)
+
+    # --- Dados de apoio para os cards de contexto (derivados dos mesmos lançamentos) ---
+    total_ano = sum(i["valor"] for i in investimentos_lista)
+    patrimonio_inicio_ano = total - total_ano
+
+    lancado_mes_atual = sum(i["valor"] for i in investimentos_lista if i["data"][5:7] == f"{mes:02d}")
+    lancado_antes_mes_atual = sum(i["valor"] for i in investimentos_lista if i["data"][5:7] < f"{mes:02d}")
+    patrimonio_fim_mes_anterior = patrimonio_inicio_ano + lancado_antes_mes_atual
+    variacao_patrimonio_valor = lancado_mes_atual
+    variacao_patrimonio_pct = (
+        (variacao_patrimonio_valor / patrimonio_fim_mes_anterior * 100)
+        if patrimonio_fim_mes_anterior > 0 else None
+    )
+
+    crescimento_ano_pct = (
+        ((total - patrimonio_inicio_ano) / patrimonio_inicio_ano * 100)
+        if patrimonio_inicio_ano > 0 else None
+    )
+
+    total_aportado_ano = sum(i["valor"] for i in investimentos_lista if i["valor"] > 0)
+    total_resgatado_ano = sum(-i["valor"] for i in investimentos_lista if i["valor"] < 0)
 
     return render_template(
         "investimentos.html",
         investimentos=investimentos_lista,
         contas=db.listar_contas(g.db, usuario_id),
         hoje=date.today().isoformat(),
-        total=db.patrimonio_investido_total(g.db, usuario_id),
+        total=total,
         meses_labels=[m[:3] for m in NOMES_MESES],
         evolucao_serie=[round(acumulado_por_mes[m], 2) for m in range(1, 13)],
         ano=ano,
+        variacao_patrimonio_valor=variacao_patrimonio_valor,
+        variacao_patrimonio_pct=variacao_patrimonio_pct,
+        crescimento_ano_pct=crescimento_ano_pct,
+        patrimonio_inicio_ano=patrimonio_inicio_ano,
+        total_aportado_ano=total_aportado_ano,
+        total_resgatado_ano=total_resgatado_ano,
     )
 
 

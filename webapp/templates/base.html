@@ -4,20 +4,48 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block titulo %}Controle Financeiro{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
   <div class="layout">
     <aside class="sidebar">
-      <div class="brand"><span class="dot"></span> Controle Financeiro</div>
+      <div class="brand">
+        <span class="logo">CF</span>
+        <span class="brand-nome">Controle Financeiro</span>
+      </div>
       <nav>
-        <a href="{{ url_for('financeiro.dashboard') }}" class="{{ 'active' if request.endpoint == 'financeiro.dashboard' }}">Dashboard</a>
-        <a href="{{ url_for('financeiro.contas') }}" class="{{ 'active' if request.endpoint == 'financeiro.contas' }}">Contas e Cartões</a>
-        <a href="{{ url_for('financeiro.receitas') }}" class="{{ 'active' if request.endpoint == 'financeiro.receitas' }}">Receitas</a>
-        <a href="{{ url_for('financeiro.despesas') }}" class="{{ 'active' if request.endpoint == 'financeiro.despesas' }}">Despesas</a>
-        <a href="{{ url_for('financeiro.investimentos') }}" class="{{ 'active' if request.endpoint == 'financeiro.investimentos' }}">Investimentos</a>
-        <a href="{{ url_for('financeiro.metas') }}" class="{{ 'active' if request.endpoint == 'financeiro.metas' }}">Metas / Orçamento</a>
+        <div class="nav-grupo">
+          <div class="nav-titulo">Visão geral</div>
+          <a href="{{ url_for('financeiro.dashboard') }}" class="{{ 'active' if request.endpoint == 'financeiro.dashboard' }}"><span class="bullet"></span>Dashboard</a>
+          <a href="{{ url_for('financeiro.contas') }}" class="{{ 'active' if request.endpoint == 'financeiro.contas' }}"><span class="bullet"></span>Contas e Cartões</a>
+        </div>
+        <div class="nav-grupo">
+          <div class="nav-titulo">Movimentações</div>
+          <a href="{{ url_for('financeiro.receitas') }}" class="{{ 'active' if request.endpoint == 'financeiro.receitas' }}"><span class="bullet"></span>Receitas</a>
+          <a href="{{ url_for('financeiro.despesas') }}" class="{{ 'active' if request.endpoint == 'financeiro.despesas' }}"><span class="bullet"></span>Despesas</a>
+        </div>
+        <div class="nav-grupo">
+          <div class="nav-titulo">Planejamento</div>
+          <a href="{{ url_for('financeiro.investimentos') }}" class="{{ 'active' if request.endpoint == 'financeiro.investimentos' }}"><span class="bullet"></span>Investimentos</a>
+          <a href="{{ url_for('financeiro.metas') }}" class="{{ 'active' if request.endpoint == 'financeiro.metas' }}"><span class="bullet"></span>Metas / Orçamento</a>
+        </div>
       </nav>
+      {% set pct_orcamento = (despesas_pagas_mes / orcamento_mes) if orcamento_mes > 0 else 0 %}
+      <div class="sidebar-orcamento">
+        <div class="sidebar-orcamento-topo">
+          <span>Orçamento de {{ nome_mes_atual }}</span>
+          <span class="mono">{{ (pct_orcamento * 100) | round | int }}% usado</span>
+        </div>
+        <div class="mini-progress-track">
+          <div class="mini-progress-fill" style="width: {{ [pct_orcamento * 100, 100] | min }}%;"></div>
+        </div>
+        <div class="sidebar-orcamento-legenda">
+          <span class="mono">{{ despesas_pagas_mes | moeda }}</span> de <span class="mono">{{ orcamento_mes | moeda }}</span>
+        </div>
+      </div>
       <div class="usuario-box">
         <span class="nome">{{ g.usuario['nome'] }}</span>
         <a href="{{ url_for('auth.logout') }}">Sair</a>
