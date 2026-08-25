@@ -698,16 +698,16 @@ tbody tr:hover { background: var(--surface-hover); }
 
 /* ---------- Progress bars ---------- */
 .progress-track {
-  background: var(--bg);
+  background: var(--surface-hover);
   border-radius: 999px;
-  height: 8px;
+  height: 10px;
   width: 100%;
   overflow: hidden;
   border: 1px solid var(--border);
 }
 .progress-fill {
   height: 100%;
-  background: var(--accent);
+  background: linear-gradient(90deg, #3DD9B0, #F5B759);
   border-radius: 999px;
   transition: width 0.3s ease;
 }
