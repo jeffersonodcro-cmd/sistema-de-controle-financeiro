@@ -21,8 +21,8 @@
 
 | # | Capítulo | Status |
 |---|----------|--------|
-| 1 | O que é ser fiscal de contrato | Rascunho enviado para aprovação |
-| 2 | Antes de começar | Pendente |
+| 1 | O que é ser fiscal de contrato | Aprovado pelo autor |
+| 2 | Antes de começar | Rascunho enviado para aprovação |
 | 3 | Acompanhamento da execução | Pendente |
 | 4 | Recebimento do objeto | Pendente |
 | 5 | Irregularidades | Pendente |
