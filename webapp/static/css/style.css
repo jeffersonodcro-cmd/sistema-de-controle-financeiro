@@ -711,6 +711,9 @@ tbody tr:hover { background: var(--surface-hover); }
   border-radius: 999px;
   transition: width 0.3s ease;
 }
+.progress-fill.grupo-necessidade { background: var(--invest); }
+.progress-fill.grupo-desejo { background: var(--warning); }
+.progress-fill.grupo-poupanca { background: var(--accent); }
 .progress-fill.over { background: var(--danger); }
 
 .meta-row {

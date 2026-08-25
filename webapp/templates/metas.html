@@ -16,7 +16,7 @@
     {% set pct = (gasto / meta * 100) if meta > 0 else 0 %}
     <div class="meta-row">
       <div class="meta-label">{{ texto }}</div>
-      <div class="progress-track"><div class="progress-fill {{ 'over' if pct > 100 }}" style="width:{{ [pct, 100] | min }}%;"></div></div>
+      <div class="progress-track"><div class="progress-fill grupo-{{ chave }} {{ 'over' if pct > 100 }}" style="width:{{ [pct, 100] | min }}%;"></div></div>
       <div class="meta-value">{{ gasto | moeda }} / {{ meta | moeda }} ({{ '%.0f' | format(pct) }}%)</div>
     </div>
   {% endfor %}
@@ -60,7 +60,7 @@
         <td class="{{ 'value negativo' if l['orcamento_mensal'] and l['gasto'] > l['orcamento_mensal'] else '' }}">{{ l['gasto'] | moeda }}</td>
         <td style="min-width:160px;">
           {% if l['orcamento_mensal'] %}
-          <div class="progress-track"><div class="progress-fill {{ 'over' if pct > 100 }}" style="width:{{ [pct, 100] | min }}%;"></div></div>
+          <div class="progress-track"><div class="progress-fill grupo-{{ l['grupo_orcamento'] }} {{ 'over' if pct > 100 }}" style="width:{{ [pct, 100] | min }}%;"></div></div>
           {% endif %}
         </td>
         <td>
