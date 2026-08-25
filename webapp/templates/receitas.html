@@ -52,15 +52,34 @@
 </div>
 
 <div class="panel">
-  <h2>Receitas do ano</h2>
+  <div class="panel-cabecalho">
+    <h2>Receitas do ano</h2>
+    {% if receitas %}
+    <select id="filtro-mes-receitas">
+      <option value="">Todos os meses</option>
+      <option value="01">Janeiro</option>
+      <option value="02">Fevereiro</option>
+      <option value="03">Março</option>
+      <option value="04">Abril</option>
+      <option value="05">Maio</option>
+      <option value="06">Junho</option>
+      <option value="07">Julho</option>
+      <option value="08">Agosto</option>
+      <option value="09">Setembro</option>
+      <option value="10">Outubro</option>
+      <option value="11">Novembro</option>
+      <option value="12">Dezembro</option>
+    </select>
+    {% endif %}
+  </div>
   {% if receitas %}
   <table>
     <thead>
       <tr><th>Data</th><th>Descrição</th><th>Tipo</th><th>Valor</th><th>Conta</th><th>Status</th><th></th></tr>
     </thead>
-    <tbody>
+    <tbody id="tabela-receitas-corpo">
       {% for r in receitas %}
-      <tr>
+      <tr data-mes="{{ r['data_prevista'][5:7] }}">
         <td>{{ r['data_prevista'] }}</td>
         <td>{{ r['descricao'] }}</td>
         <td>{{ r['tipo'] }}</td>
@@ -80,8 +99,29 @@
       {% endfor %}
     </tbody>
   </table>
+  <div id="receitas-filtro-vazio" class="empty-state" style="display:none;">Nenhuma receita neste mês.</div>
   {% else %}
   <div class="empty-state">Nenhuma receita cadastrada para este ano.</div>
   {% endif %}
 </div>
+
+<script>
+  (function () {
+    var select = document.getElementById('filtro-mes-receitas');
+    if (!select) return;
+    var linhas = document.querySelectorAll('#tabela-receitas-corpo tr');
+    var vazio = document.getElementById('receitas-filtro-vazio');
+
+    select.addEventListener('change', function () {
+      var mes = select.value;
+      var visiveis = 0;
+      linhas.forEach(function (linha) {
+        var mostrar = !mes || linha.dataset.mes === mes;
+        linha.style.display = mostrar ? '' : 'none';
+        if (mostrar) visiveis++;
+      });
+      vazio.style.display = visiveis === 0 ? '' : 'none';
+    });
+  })();
+</script>
 {% endblock %}
