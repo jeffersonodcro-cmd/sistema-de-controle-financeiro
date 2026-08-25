@@ -26,6 +26,29 @@ def exigir_login():
     pass
 
 
+@bp.context_processor
+def dados_sidebar_orcamento():
+    """Dados do orçamento do mês atual, exibidos no widget fixo da sidebar
+    em todas as páginas (o Dashboard sobrescreve com os mesmos nomes)."""
+    usuario_id = g.usuario["id"]
+    ano, mes = ano_atual(), mes_atual()
+
+    linhas_categoria = db.gasto_por_categoria_mes(g.db, usuario_id, ano, mes)
+    despesas_mes = db.listar_despesas(g.db, usuario_id, ano)
+
+    orcamento_mes = sum(l["orcamento_mensal"] or 0 for l in linhas_categoria)
+    despesas_pagas_mes = sum(
+        (d["valor_pago"] if d["valor_pago"] is not None else d["valor"])
+        for d in despesas_mes if d["paga"] and d["data_prevista"][:7] == f"{ano}-{mes:02d}"
+    )
+
+    return dict(
+        orcamento_mes=orcamento_mes,
+        despesas_pagas_mes=despesas_pagas_mes,
+        nome_mes_atual=NOMES_MESES[mes - 1],
+    )
+
+
 # ---------------- Dashboard ----------------
 @bp.route("/")
 def dashboard():
