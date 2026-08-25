@@ -26,18 +26,24 @@
       <span class="badge-semantico {{ 'badge-negativo' if saldo < 0 else 'badge-positivo' }}">{{ 'NEGATIVO' if saldo < 0 else 'POSITIVO' }}</span>
     </div>
     <div class="value hero-value mono"><span class="cifrao">{{ saldo_partes[0] }}</span> {{ saldo_partes[1] }}</div>
-    <div class="hero-rodape">
-      <div>
-        <span class="hero-rodape-label">Patrimônio investido</span>
-        <span class="mono hero-rodape-valor" style="color: var(--invest);">{{ investido | moeda }}</span>
-      </div>
-      <div>
-        <span class="hero-rodape-label">Posição líquida</span>
-        <span class="mono hero-rodape-valor">{{ (saldo + investido) | moeda }}</span>
-      </div>
-    </div>
   </div>
 
+  <div class="stat-card">
+    <div class="hero-topo">
+      <span class="label">Patrimônio investido</span>
+    </div>
+    <div class="value mono" style="color: var(--invest);">{{ investido | moeda }}</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="hero-topo">
+      <span class="label">Posição líquida</span>
+    </div>
+    <div class="value mono">{{ (saldo + investido) | moeda }}</div>
+  </div>
+</div>
+
+<div class="kpi-grid">
   <div class="stat-card">
     <div class="hero-topo">
       <span class="label">Receita prevista</span>
@@ -129,7 +135,7 @@
       </div>
       <p class="empty-titulo">Sem despesas neste mês</p>
       <p class="empty-sub dim">Lance suas despesas previstas para acompanhar os gastos por categoria aqui.</p>
-      <a href="{{ url_for('financeiro.despesas') }}" class="btn btn-ghost btn-sm">Lançar despesas</a>
+      <a href="{{ url_for('financeiro.despesas') }}" class="btn btn-ghost btn-sm">Lançar despesa</a>
     </div>
     {% endif %}
   </div>

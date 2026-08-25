@@ -362,13 +362,13 @@ a:hover { text-decoration: underline; }
 /* ---------- KPI grid ---------- */
 .kpi-grid {
   display: grid;
-  grid-template-columns: 1.35fr 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   margin-bottom: 16px;
 }
 
 .stat-vencimentos {
-  grid-column: span 2;
+  grid-column: 1 / -1;
 }
 
 /* ---------- Hero card ---------- */
