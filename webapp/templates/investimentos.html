@@ -46,6 +46,45 @@
 
 <div class="cards-grid">
   <div class="stat-card"><div class="label">Patrimônio investido total</div><div class="value neutro">{{ total | moeda }}</div></div>
+
+  <div class="stat-card">
+    <div class="hero-topo">
+      <span class="label">Variação no mês</span>
+      <span class="badge-mes">MÊS</span>
+    </div>
+    <div class="value mono" style="color: {{ 'var(--accent)' if variacao_patrimonio_valor >= 0 else 'var(--danger)' }};">{{ variacao_patrimonio_valor | moeda }}</div>
+    <div class="card-contexto">
+      {% if variacao_patrimonio_pct is not none %}
+        <span style="color: {{ 'var(--accent)' if variacao_patrimonio_pct >= 0 else 'var(--danger)' }};">{{ '▲' if variacao_patrimonio_pct >= 0 else '▼' }} {{ variacao_patrimonio_pct | abs | round(1) }}% vs. mês anterior</span>
+      {% else %}
+        <span class="dim">Sem comparativo do mês anterior</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="hero-topo">
+      <span class="label">Crescimento do patrimônio no ano</span>
+      <span class="badge-mes">{{ ano }}</span>
+    </div>
+    {% if crescimento_ano_pct is not none %}
+    <div class="value mono" style="color: {{ 'var(--accent)' if crescimento_ano_pct >= 0 else 'var(--danger)' }};">{{ '▲' if crescimento_ano_pct >= 0 else '▼' }} {{ crescimento_ano_pct | abs | round(1) }}%</div>
+    <div class="card-contexto"><span class="dim">Desde jan/{{ ano }}: {{ patrimonio_inicio_ano | moeda }} → {{ total | moeda }}</span></div>
+    {% else %}
+    <div class="value mono dim">—</div>
+    <div class="card-contexto"><span class="dim">Sem patrimônio no início do ano para comparar</span></div>
+    {% endif %}
+  </div>
+
+  <div class="stat-card">
+    <div class="hero-topo"><span class="label">Total aportado no ano</span></div>
+    <div class="value mono positivo">{{ total_aportado_ano | moeda }}</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="hero-topo"><span class="label">Total resgatado no ano</span></div>
+    <div class="value mono negativo">{{ total_resgatado_ano | moeda }}</div>
+  </div>
 </div>
 
 <div class="panel">

@@ -300,25 +300,54 @@ def investimentos():
             flash("Dados inválidos. Confira valor e data.", "erro")
         return redirect(url_for("financeiro.investimentos"))
 
-    ano = ano_atual()
+    ano, mes = ano_atual(), mes_atual()
     investimentos_lista = db.listar_investimentos(g.db, usuario_id, ano)
     rows = db.evolucao_investimentos(g.db, usuario_id, ano)
     acumulado_por_mes = {i: 0.0 for i in range(1, 13)}
     saldo_acumulado = 0.0
     valores_por_mes = {int(r["mes_ref"][5:7]): r["total"] for r in rows}
-    for mes in range(1, 13):
-        saldo_acumulado += valores_por_mes.get(mes, 0.0)
-        acumulado_por_mes[mes] = saldo_acumulado
+    for m in range(1, 13):
+        saldo_acumulado += valores_por_mes.get(m, 0.0)
+        acumulado_por_mes[m] = saldo_acumulado
+
+    total = db.patrimonio_investido_total(g.db, usuario_id)
+
+    # --- Dados de apoio para os cards de contexto (derivados dos mesmos lançamentos) ---
+    total_ano = sum(i["valor"] for i in investimentos_lista)
+    patrimonio_inicio_ano = total - total_ano
+
+    lancado_mes_atual = sum(i["valor"] for i in investimentos_lista if i["data"][5:7] == f"{mes:02d}")
+    lancado_antes_mes_atual = sum(i["valor"] for i in investimentos_lista if i["data"][5:7] < f"{mes:02d}")
+    patrimonio_fim_mes_anterior = patrimonio_inicio_ano + lancado_antes_mes_atual
+    variacao_patrimonio_valor = lancado_mes_atual
+    variacao_patrimonio_pct = (
+        (variacao_patrimonio_valor / patrimonio_fim_mes_anterior * 100)
+        if patrimonio_fim_mes_anterior > 0 else None
+    )
+
+    crescimento_ano_pct = (
+        ((total - patrimonio_inicio_ano) / patrimonio_inicio_ano * 100)
+        if patrimonio_inicio_ano > 0 else None
+    )
+
+    total_aportado_ano = sum(i["valor"] for i in investimentos_lista if i["valor"] > 0)
+    total_resgatado_ano = sum(-i["valor"] for i in investimentos_lista if i["valor"] < 0)
 
     return render_template(
         "investimentos.html",
         investimentos=investimentos_lista,
         contas=db.listar_contas(g.db, usuario_id),
         hoje=date.today().isoformat(),
-        total=db.patrimonio_investido_total(g.db, usuario_id),
+        total=total,
         meses_labels=[m[:3] for m in NOMES_MESES],
         evolucao_serie=[round(acumulado_por_mes[m], 2) for m in range(1, 13)],
         ano=ano,
+        variacao_patrimonio_valor=variacao_patrimonio_valor,
+        variacao_patrimonio_pct=variacao_patrimonio_pct,
+        crescimento_ano_pct=crescimento_ano_pct,
+        patrimonio_inicio_ano=patrimonio_inicio_ano,
+        total_aportado_ano=total_aportado_ano,
+        total_resgatado_ano=total_resgatado_ano,
     )
 
 
