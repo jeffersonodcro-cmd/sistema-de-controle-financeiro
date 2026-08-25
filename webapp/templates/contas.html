@@ -46,7 +46,11 @@
       <tr>
         <td>{{ c['nome'] }}</td>
         <td>{{ c['tipo'] }}</td>
+        {% if c['tipo'] == 'cartao' %}
+        <td class="dim">—</td>
+        {% else %}
         <td class="{{ 'value positivo' if c['saldo_atual'] >= 0 else 'value negativo' }}">{{ c['saldo_atual'] | moeda }}</td>
+        {% endif %}
         <td>{{ (c['limite'] | moeda) if c['tipo'] == 'cartao' else '-' }}</td>
         <td>
           <form method="post" action="{{ url_for('financeiro.excluir_conta', conta_id=c['id']) }}" onsubmit="return confirm('Excluir esta conta?');">
