@@ -163,6 +163,9 @@ def receitas():
             tipo = request.form.get("tipo", "fixa")
             data_prevista = date.fromisoformat(request.form.get("data_prevista"))
             conta_id = int(request.form.get("conta_id"))
+            conta = db.buscar_conta(g.db, usuario_id, conta_id)
+            if conta is None or conta["tipo"] != "conta":
+                raise ValueError("Selecione uma conta corrente/poupança válida para receber a receita.")
             repetir = request.form.get("repetir") == "on"
 
             if repetir:
@@ -185,7 +188,7 @@ def receitas():
     return render_template(
         "receitas.html",
         receitas=receitas_lista,
-        contas=db.listar_contas(g.db, usuario_id),
+        contas=[c for c in db.listar_contas(g.db, usuario_id) if c["tipo"] == "conta"],
         hoje=date.today().isoformat(),
         total=total, total_recebido=total_recebido, total_a_receber=total - total_recebido,
     )
