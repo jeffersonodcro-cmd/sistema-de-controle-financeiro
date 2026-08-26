@@ -42,7 +42,7 @@
     </div>
     <button type="submit" class="btn btn-primary" {{ 'disabled' if not contas }}>Adicionar</button>
   </form>
-  {% if not contas %}<p style="color:var(--text-muted);font-size:13px;margin-top:10px;">Cadastre uma conta antes de lançar receitas.</p>{% endif %}
+  {% if not contas %}<p style="color:var(--text-muted);font-size:13px;margin-top:10px;">Cadastre uma conta corrente/poupança antes de lançar receitas (cartões de crédito não recebem depósitos).</p>{% endif %}
 </div>
 
 <div class="cards-grid">
